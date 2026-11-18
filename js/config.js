@@ -1,6 +1,6 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.0.4';
+const VERSION = '1.0.5';
 
 // Testing mode = 20 s encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
 // PLAYTEST: while only a couple of people are testing, the normal link IS the testing build.

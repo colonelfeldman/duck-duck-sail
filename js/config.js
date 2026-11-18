@@ -1,6 +1,6 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.0.6';
+const VERSION = '1.0.7';
 
 // Testing mode = 2 min between encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
 // PLAYTEST: while only a couple of people are testing, the normal link IS the testing build.
@@ -92,8 +92,21 @@ const CONFIG = {
   lookAround: {
     enabled: true,             // on for everyone (Jeff, 2026-11-18); 🧭 lets a player turn it off
     defaultOn: true,           // per-device toggle (🧭 on the catch screen) remembers the player's choice
-    fovDeg: 60,                // how many degrees of turning sweep across the screen width
-    spawnYawDeg: [20, 45],     // the duck appears this far to the left or right of where you're facing
+    // Calibration: degrees the phone camera sees along its LONG side (portrait = top-to-bottom).
+    // Typical phone main cameras are ~65–72°. If the duck drifts WITH the phone when you turn, raise it;
+    // if it races ahead of the room, lower it. Used with the real video size so the duck tracks the picture.
+    cameraLongFovDeg: 68,
+    fovDeg: 60,                // fallback only (before the video size is known): degrees across the screen width
+    // Where the duck hides when the encounter starts (degrees from where the phone is pointing).
+    spawn: {
+      inViewChance: 0.3,                    // sometimes it's right there
+      inView: { yaw: 8, pitch: 4 },         // ± small nudge when it's in view
+      dirWeights: { left: 2, right: 2, up: 1, down: 1 },
+      side: [40, 90],                       // left/right: how far you have to turn
+      up: [35, 50],                         // above you
+      down: [45, 60],                       // below you (toward the floor)
+      jitter: 10,                           // ± on the other axis so it's never perfectly lined up
+    },
     smoothing: 14,             // higher = snappier, lower = steadier
     waitMs: 3000,              // how long to wait for camera + motion before falling back to the overlay
   },

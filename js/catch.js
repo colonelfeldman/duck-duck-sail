@@ -120,17 +120,43 @@ const Catch = (() => {
     L.cam.yaw = wrapPi(L.cam.yaw + wrapPi(LOOK.raw.yaw - L.cam.yaw) * k);
     L.cam.pitch += (LOOK.raw.pitch - L.cam.pitch) * k;
     if (!L.anchored) {
-      // first live frame: place the duck off to one side so the player has to look for it
-      const [a, b] = LA().spawnYawDeg;
-      const off = L.spawnOffset ? (a + Math.random() * (b - a)) * (Math.random() < 0.5 ? -1 : 1) * Math.PI / 180 : 0;
-      L.duckYaw = wrapPi(L.cam.yaw + off);
-      L.duckPitch = L.cam.pitch;
+      // first live frame: decide where the duck hides (in view, or left/right/up/down of the player)
+      const off = L.spawnOffset ? spawnOffset() : { yaw: 0, pitch: 0, dir: 'here' };
+      const deg = Math.PI / 180, lim = 80 * deg;
+      L.spawnDir = off.dir;
+      L.duckYaw = wrapPi(L.cam.yaw + off.yaw * deg);
+      L.duckPitch = Math.max(-lim, Math.min(lim, L.cam.pitch + off.pitch * deg));
       L.anchored = true;
       if (L.pending) { L.pending = false; revealDuck(); }
     }
-    const ppr = E.W / (LA().fovDeg * Math.PI / 180);         // pixels per radian of turning
+    const ppr = pxPerRad();
     L.proj.x = wrapPi(L.duckYaw - L.cam.yaw) * ppr;
     L.proj.y = -(L.duckPitch - L.cam.pitch) * ppr;
+  }
+
+  // Pixels per radian of turning, matched to the camera picture so the duck moves with the room.
+  // The video is shown with object-fit: cover, so the camera's long side fills `long * scale` pixels.
+  function pxPerRad() {
+    const v = el.cam, vw = v && v.videoWidth, vh = v && v.videoHeight;
+    if (vw && vh) {
+      const scale = Math.max(E.W / vw, E.H / vh);
+      return (Math.max(vw, vh) * scale) / (LA().cameraLongFovDeg * Math.PI / 180);
+    }
+    return E.W / (LA().fovDeg * Math.PI / 180);
+  }
+
+  // Degrees from where the phone points when the duck appears. Sometimes in view, otherwise hidden
+  // to the left/right/up/down (CONFIG.lookAround.spawn).
+  function spawnOffset() {
+    const sp = LA().spawn;
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const pm = (n) => rnd(-n, n);
+    if (Math.random() < sp.inViewChance) return { yaw: pm(sp.inView.yaw), pitch: pm(sp.inView.pitch), dir: 'here' };
+    const dir = Store.pickWeighted(sp.dirWeights);
+    if (dir === 'left') return { yaw: -rnd(...sp.side), pitch: pm(sp.jitter / 2), dir };
+    if (dir === 'right') return { yaw: rnd(...sp.side), pitch: pm(sp.jitter / 2), dir };
+    if (dir === 'up') return { yaw: pm(sp.jitter), pitch: rnd(...sp.up), dir };
+    return { yaw: pm(sp.jitter), pitch: -rnd(...sp.down), dir };
   }
 
   function revealDuck() {

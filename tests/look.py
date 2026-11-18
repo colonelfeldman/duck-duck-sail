@@ -30,18 +30,19 @@ with sync_playwright() as p:
     check(pg.is_visible('#c-look') and 'on' in pg.get_attribute('#c-look', 'class'), '🧭 toggle visible and on in testing')
     check(E('E.look.anchored') and not E('E.look.pending'), 'duck anchored to a direction once motion data arrives')
     check(pg.evaluate("document.getElementById('duckwrap').style.visibility") == '', 'duck revealed')
-    off = E('Math.round((E.look.duckYaw - E.look.cam.yaw) * 180 / Math.PI)')
-    check(20 <= abs(off) <= 45, f'duck spawned {off}° to the side')
     W = pg.evaluate('innerWidth')
-    dx = E('E.duck.x') - W / 2
-    check((dx > 0) == (off > 0) and abs(dx) > W * 0.25, f'duck drawn off-centre on the matching side (dx={dx:.0f}px)')
+    print('  spawned:', E('E.look.spawnDir'), '| yaw off', E('Math.round((E.look.duckYaw - E.look.cam.yaw) * 180 / Math.PI)'),
+          '| pitch off', E('Math.round((E.look.duckPitch - E.look.cam.pitch) * 180 / Math.PI)'))
+    ppr_deg = pg.evaluate("(() => { const v = document.getElementById('cam'); const s = Math.max(innerWidth / v.videoWidth, innerHeight / v.videoHeight); return Math.max(v.videoWidth, v.videoHeight) * s / CONFIG.lookAround.cameraLongFovDeg; })()")
+    check(ppr_deg > 5, f'turning scale calibrated from the camera picture ({ppr_deg:.1f} px per degree)')
     pg.screenshot(path=str(OUT / 'look-01-spawn.png'))
     if E('E.duck.x < -E.S*0.25 || E.duck.x > E.W + E.S*0.25'):
         check(pg.is_visible('#c-find'), f"finder arrow shows: {pg.inner_text('#c-find')}")
 
     # Turn the phone to face the duck: heading = -alpha
     duck_yaw_deg = E('E.look.duckYaw * 180 / Math.PI')
-    pg.evaluate(ORIENT_JS, {'a': -duck_yaw_deg, 'b': 90, 'g': 0}); pg.wait_for_timeout(900)
+    duck_pitch_deg = E('E.look.duckPitch * 180 / Math.PI')
+    pg.evaluate(ORIENT_JS, {'a': -duck_yaw_deg, 'b': 90 + duck_pitch_deg, 'g': 0}); pg.wait_for_timeout(900)
     dx2 = E('E.duck.x') - W / 2
     check(abs(dx2) < W * 0.3, f'turning toward the duck brings it to the centre (dx={dx2:.0f}px; includes its own wandering)')
     check(not pg.is_visible('#c-find'), 'finder arrow hidden when the duck is on screen')
@@ -49,10 +50,10 @@ with sync_playwright() as p:
 
     # Tilt the phone up 15°: the duck should move down the screen
     y0 = E('E.look.proj.y')
-    pg.evaluate(ORIENT_JS, {'a': -duck_yaw_deg, 'b': 105, 'g': 0}); pg.wait_for_timeout(700)
+    pg.evaluate(ORIENT_JS, {'a': -duck_yaw_deg, 'b': 90 + duck_pitch_deg + 15, 'g': 0}); pg.wait_for_timeout(700)
     y1 = E('E.look.proj.y')
     check(y1 - y0 > 60, f'tilting up moves the duck down ({y0:.0f} → {y1:.0f}px)')
-    pg.evaluate(ORIENT_JS, {'a': -duck_yaw_deg, 'b': 90, 'g': 0}); pg.wait_for_timeout(700)
+    pg.evaluate(ORIENT_JS, {'a': -duck_yaw_deg, 'b': 90 + duck_pitch_deg, 'g': 0}); pg.wait_for_timeout(700)
 
     # Land + reel + catch in look mode
     caught = False
@@ -73,6 +74,23 @@ with sync_playwright() as p:
     pg.wait_for_timeout(900); pg.screenshot(path=str(OUT / 'look-03-caught.png'))
     pg.click('#c-x'); pg.wait_for_timeout(200)
     check(pg.evaluate('Catch.lookState().raw') is None, 'leaving the encounter stops listening to motion')
+
+    # Spawn spread over many encounters: in view, left, right, up, down all happen; finder says the right thing
+    pg.evaluate(ORIENT_JS, {'a': 0, 'b': 90, 'g': 0})
+    seen, finder_ok = {}, True
+    for _ in range(30):
+        pg.evaluate("Store.get().nextEncounterAt = 0; Store.get().encounterLog = []; App.startTimedEncounter()"); pg.wait_for_timeout(700)
+        d = E('E.look.spawnDir'); seen[d] = seen.get(d, 0) + 1
+        txt = pg.inner_text('#c-find') if pg.is_visible('#c-find') else ''
+        want = {'left': 'left', 'right': 'right', 'up': 'up', 'down': 'down'}.get(d)
+        if want and want not in txt.lower(): finder_ok = False; print('  finder mismatch:', d, repr(txt))
+        if d == 'here' and txt: finder_ok = False; print('  in-view duck but finder shown:', repr(txt))
+        if d in ('up', 'down') and not seen.get('shot_' + d):
+            seen['shot_' + d] = 1; pg.screenshot(path=str(OUT / f'look-spawn-{d}.png'))
+        pg.evaluate("Catch.exit('deck')")
+    print('  spawn spread:', {k: v for k, v in seen.items() if not k.startswith('shot_')})
+    check(all(seen.get(k) for k in ('here', 'left', 'right', 'up', 'down')), 'duck hides in every direction (and sometimes in view)')
+    check(finder_ok, 'finder arrow always points the right way (Turn left/right, Look up/down), none when in view')
 
     # Toggle off mid-encounter → duck back to normal overlay
     pg.evaluate("Store.get().nextEncounterAt = 0; Store.get().encounterLog = []; App.startTimedEncounter()"); pg.wait_for_timeout(1200)

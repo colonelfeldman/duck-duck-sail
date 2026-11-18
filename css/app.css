@@ -115,7 +115,15 @@ body[data-screen="catch"] .foot, body[data-screen="scan"] .foot { display: none;
 .c-info { flex: 1; background: rgba(0,0,0,.38); color: #fff; border-radius: 14px; padding: 8px 12px; }
 .c-info b { display: block; } .c-info span, .c-info small { color: #dceeff; font-size: .82rem; display: block; }
 .catch-top .xbtn { font-size: 1.2rem; font-weight: 800; flex: none; }
-.catch-top #c-cam { flex: none; }
+.catch-top #c-cam, .catch-top #c-look { flex: none; }
+.lookbtn { opacity: .55; } .lookbtn.on { opacity: 1; box-shadow: 0 0 0 2px var(--yellow); }
+.c-find { position: absolute; z-index: 5; display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,.55); color: #fff;
+  font-weight: 800; border-radius: 99px; padding: 8px 12px; pointer-events: none; animation: pulse2 .8s ease-in-out infinite alternate; }
+.c-find i { font-style: normal; display: inline-block; color: var(--yellow); font-size: 1.2rem; }
+.c-find.left { left: 10px; top: 38%; } .c-find.right { right: 10px; top: 38%; }
+.c-find.top { top: calc(110px + var(--safe-t)); left: 50%; transform: translateX(-50%); }
+.c-find.bottom { bottom: calc(230px + var(--safe-b)); left: 50%; transform: translateX(-50%); }
+@keyframes pulse2 { from { opacity: .75; } to { opacity: 1; } }
 .c-safety { position: absolute; top: calc(70px + var(--safe-t)); left: 50%; transform: translateX(-50%); background: rgba(255,255,255,.85); color: var(--ink);
   font-size: .78rem; font-weight: 700; border-radius: 99px; padding: 4px 10px; z-index: 5; pointer-events: none; white-space: nowrap; }
 .c-msg { position: absolute; top: 20%; left: 0; right: 0; text-align: center; font-size: 2rem; font-weight: 900; color: #fff; z-index: 5;

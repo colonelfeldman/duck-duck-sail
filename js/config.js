@@ -1,6 +1,6 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.0.1';
+const VERSION = '1.0.2';
 
 // Testing mode: open the game with ?test=1 (remembered on this device), ?test=0 to turn it off.
 // Testing mode = 20 s encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
@@ -83,6 +83,17 @@ const CONFIG = {
     struggleMs: 700,
     warnMs: 250,
     calmMs: { 1: [1100, 2000], 2: [900, 1600], 3: [700, 1300] },
+  },
+
+  // Look-around mode (gyroscope): the duck holds a direction in the room and you turn the phone to find it.
+  // Only with the camera on. iPhone asks once for motion access. Falls back to the plain overlay if no motion data.
+  lookAround: {
+    enabled: TESTING,          // testing builds only until it's been playtested
+    defaultOn: true,           // per-device toggle (🧭 on the catch screen) remembers the player's choice
+    fovDeg: 60,                // how many degrees of turning sweep across the screen width
+    spawnYawDeg: [20, 45],     // the duck appears this far to the left or right of where you're facing
+    smoothing: 14,             // higher = snappier, lower = steadier
+    waitMs: 3000,              // how long to wait for camera + motion before falling back to the overlay
   },
 
   // Flee: chance after each failure = base × failure points (miss = 0.5 point, slip-off = 1)

@@ -9,7 +9,7 @@ const Catch = (() => {
   function grab() {
     for (const id of ['scr-catch', 'cam', 'sea', 'stage', 'duckwrap', 'flyring', 'rope', 'splash', 'c-info', 'c-msg',
       'c-spin', 'c-spin-fill', 'c-spin-label', 'c-reel', 'c-prog', 'c-tens', 'c-reel-btn', 'c-cue', 'c-bottom',
-      'c-rings', 'c-throw', 'c-leave', 'c-x', 'c-cam', 'c-celebrate', 'c-hint']) el[id] = $(id);
+      'c-rings', 'c-throw', 'c-leave', 'c-x', 'c-cam', 'c-celebrate', 'c-hint', 'c-look', 'c-find']) el[id] = $(id);
     el.rb = el.duckwrap.querySelector('.rb');
     el.dk = el.duckwrap.querySelector('.dk');     // moves as one: ring halves + art (classes go here)
     el.art = el.duckwrap.querySelector('.art');
@@ -55,9 +55,111 @@ const Catch = (() => {
   }
   function showSea() {
     stopCamera();
+    if (E && E.look.pending) { E.look.pending = false; revealDuck(); }   // no camera → plain overlay now
     el.sea.hidden = false;
     el['c-cam'].textContent = '📷';
     el['c-cam'].title = 'Use camera';
+  }
+
+  // ---------- look-around (gyroscope) ----------
+  // The phone reports its orientation; we turn that into the direction the back camera points
+  // (yaw = left/right, pitch = up/down). The duck gets its own yaw/pitch in the room, and its screen
+  // position is the difference. Works on Android Chrome and iPhone Safari (after one permission tap).
+  const LOOK = { perm: null, raw: null, lastEvt: 0 };
+  const LA = () => CONFIG.lookAround;
+  function lookPref() {
+    try { const v = localStorage.getItem('dds_look'); return v === null ? LA().defaultOn : v === '1'; }
+    catch (e) { return LA().defaultOn; }
+  }
+  function setLookPref(on) { try { localStorage.setItem('dds_look', on ? '1' : '0'); } catch (e) {} }
+
+  // Must be called synchronously inside a tap (iPhone only shows the prompt from a user gesture).
+  function requestMotion() {
+    const D = window.DeviceOrientationEvent;
+    if (!D) return Promise.resolve(false);
+    if (typeof D.requestPermission === 'function') {
+      if (LOOK.perm === 'granted') return Promise.resolve(true);
+      return D.requestPermission().then((r) => { LOOK.perm = r; return r === 'granted'; }).catch(() => false);
+    }
+    return Promise.resolve(true);
+  }
+
+  function onOrient(ev) {
+    if (ev.alpha == null || ev.beta == null || ev.gamma == null) return;
+    const d = Math.PI / 180;
+    const cA = Math.cos(ev.alpha * d), sA = Math.sin(ev.alpha * d);
+    const cB = Math.cos(ev.beta * d), sB = Math.sin(ev.beta * d);
+    const cG = Math.cos(ev.gamma * d), sG = Math.sin(ev.gamma * d);
+    // back-camera direction in world space = -(3rd column of Rz(α)·Rx(β)·Ry(γ))
+    const fx = -cA * sG - sA * sB * cG;
+    const fy = -sA * sG + cA * sB * cG;
+    const fz = -cB * cG;
+    LOOK.raw = { yaw: Math.atan2(fx, fy), pitch: Math.asin(Math.max(-1, Math.min(1, fz))) };
+    LOOK.lastEvt = performance.now();
+  }
+  const wrapPi = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+
+  function lookLive() {
+    return !!(E && E.look.want && E.stream && LOOK.raw && performance.now() - LOOK.lastEvt < 1000);
+  }
+
+  function stepLook(dt) {
+    const L = E.look;
+    if (!lookLive()) {
+      L.proj.x = 0; L.proj.y = 0;
+      if (L.pending && E.t * 1000 > LA().waitMs) {        // no camera or no motion data: plain overlay
+        L.pending = false;
+        L.want = false;
+        revealDuck();
+        updateLookBtn();
+      }
+      return;
+    }
+    const k = 1 - Math.exp(-dt * LA().smoothing);
+    if (L.cam === null) { L.cam = { ...LOOK.raw }; }
+    L.cam.yaw = wrapPi(L.cam.yaw + wrapPi(LOOK.raw.yaw - L.cam.yaw) * k);
+    L.cam.pitch += (LOOK.raw.pitch - L.cam.pitch) * k;
+    if (!L.anchored) {
+      // first live frame: place the duck off to one side so the player has to look for it
+      const [a, b] = LA().spawnYawDeg;
+      const off = L.spawnOffset ? (a + Math.random() * (b - a)) * (Math.random() < 0.5 ? -1 : 1) * Math.PI / 180 : 0;
+      L.duckYaw = wrapPi(L.cam.yaw + off);
+      L.duckPitch = L.cam.pitch;
+      L.anchored = true;
+      if (L.pending) { L.pending = false; revealDuck(); }
+    }
+    const ppr = E.W / (LA().fovDeg * Math.PI / 180);         // pixels per radian of turning
+    L.proj.x = wrapPi(L.duckYaw - L.cam.yaw) * ppr;
+    L.proj.y = -(L.duckPitch - L.cam.pitch) * ppr;
+  }
+
+  function revealDuck() {
+    if (!E) return;
+    el.duckwrap.style.visibility = '';
+    el.dk.classList.remove('appear'); void el.dk.offsetWidth; el.dk.classList.add('appear');
+    later(() => el.dk.classList.remove('appear'), 600);
+  }
+
+  function updateFinder() {
+    const f = el['c-find'];
+    const live = lookLive() && E.look.anchored && (E.phase === 'aim' || E.phase === 'flight' || E.phase === 'reel');
+    const d = E.duck, m = E.S * 0.25;
+    const off = live && (d.x < -m || d.x > E.W + m || d.y < -m || d.y > E.H + m);
+    f.hidden = !off;
+    if (!off) return;
+    const ang = Math.atan2(d.y - E.H / 2, d.x - E.W / 2);
+    const left = d.x < E.W / 2;
+    const vert = Math.abs(d.y - E.H / 2) > Math.abs(d.x - E.W / 2) * 1.2;
+    f.innerHTML = `<i style="transform:rotate(${ang}rad)">➤</i><span>${vert ? (d.y < E.H / 2 ? 'Look up' : 'Look down') : (left ? 'Turn left' : 'Turn right')}</span>`;
+    f.className = 'c-find ' + (vert ? (d.y < E.H / 2 ? 'top' : 'bottom') : (left ? 'left' : 'right'));
+  }
+
+  function updateLookBtn() {
+    const b = el['c-look'];
+    b.hidden = !LA().enabled;
+    if (!E) return;
+    b.classList.toggle('on', !!E.look.want);
+    b.title = E.look.want ? 'Look-around on: turn the phone to find the duck' : 'Look-around off: the duck stays on screen';
   }
 
   // ---------- geometry ----------
@@ -111,7 +213,21 @@ const Catch = (() => {
       raf: 0, last: 0, t: 0,
       stream: null,
       holding: false,
+      look: { want: false, pending: false, anchored: false, spawnOffset: true, cam: null, duckYaw: 0, duckPitch: 0, proj: { x: 0, y: 0 } },
     };
+    // Look-around: ask for motion access now, while we're still inside the player's tap.
+    if (LA().enabled && camPref() && lookPref()) {
+      E.look.want = true;
+      E.look.pending = true;
+      const t = token;
+      requestMotion().then((ok) => {
+        if (t !== token || !E || ok) return;
+        E.look.want = false;
+        App.toast('Motion access is off, so the duck stays on screen.');
+        if (E.look.pending) { E.look.pending = false; revealDuck(); }
+        updateLookBtn();
+      });
+    }
     App.go('catch');
     measure();
     E.duck.y = E.homeY;
@@ -119,6 +235,9 @@ const Catch = (() => {
 
     el.art.innerHTML = ART.duckSVG(E.wild.form, E.wild.gold);
     el.dk.className = 'dk appear';
+    el.duckwrap.style.visibility = E.look.pending ? 'hidden' : '';
+    el['c-find'].hidden = true;
+    updateLookBtn();
     el.rb.innerHTML = ''; el.rf.innerHTML = '';
     el.rb.style.opacity = el.rf.style.opacity = 0;
     el.splash.className = '';
@@ -133,7 +252,7 @@ const Catch = (() => {
     el['c-info'].innerHTML = `<b>${E.wild.gold ? '✨ Gold ' : ''}${f.name}</b> <span>Lv ${E.wild.level} · ${f.rarity}</span>` +
       (E.label ? `<small>${E.label}</small>` : '');
     setMsg('');
-    hint('Flick the ring up at the duck. Circle it first to add spin.');
+    hint(E.look.want ? 'Look around for the duck, then flick the ring at it.' : 'Flick the ring up at the duck. Circle it first to add spin.');
     renderRings();
     resetRing();
     if (camPref()) startCamera(); else showSea();
@@ -144,6 +263,7 @@ const Catch = (() => {
     window.addEventListener('pointerup', onWinUp);
     window.addEventListener('pointercancel', onWinUp);
     window.addEventListener('resize', onResize);
+    window.addEventListener('deviceorientation', onOrient);
   }
 
   function onResize() { if (E) { measure(); if (E.phase === 'aim' && !E.drag) resetRing(); } }
@@ -161,6 +281,10 @@ const Catch = (() => {
     window.removeEventListener('pointerup', onWinUp);
     window.removeEventListener('pointercancel', onWinUp);
     window.removeEventListener('resize', onResize);
+    window.removeEventListener('deviceorientation', onOrient);
+    LOOK.raw = null;
+    if (el.duckwrap) el.duckwrap.style.visibility = '';
+    if (el['c-find']) el['c-find'].hidden = true;
     el['c-cue'] && el['c-cue'].classList.remove('on');
     E = null;
     token += 1;
@@ -221,11 +345,13 @@ const Catch = (() => {
     const dt = Math.min(0.05, (now - E.last) / 1000);
     E.last = now;
     E.t += dt;
+    stepLook(dt);
     stepDuck(dt);
     if (E.phase === 'aim') stepAim(dt);
     if (E.phase === 'flight') stepFlight(now);
     if (E.phase === 'reel') stepReel(dt);
     drawDuck();
+    updateFinder();
     if (E && E.raf !== -1) E.raf = requestAnimationFrame(loop);
   }
 
@@ -238,15 +364,15 @@ const Catch = (() => {
         d.nextWander = E.t + 1.1 + Math.random() * 1.4;
       }
       d.dx += (d.tx - d.dx) * (1 - Math.exp(-dt * d.rate));
-      d.x = E.W / 2 + d.dx;
-      d.y = E.homeY + Math.sin(E.t * 2.3) * 8;
+      d.x = E.W / 2 + d.dx + E.look.proj.x;
+      d.y = E.homeY + Math.sin(E.t * 2.3) * 8 + E.look.proj.y;
       d.sc = 1;
     } else if (E.phase === 'reel' && E.reel) {
       const p = E.reel.p;
       const shake = E.reel.state === 'calm' ? 0 : Math.sin(E.t * 50) * (E.reel.state === 'burst' ? 9 : 4);
       d.dx += (0 - d.dx) * (1 - Math.exp(-dt * 2));
-      d.x = E.W / 2 + d.dx + shake;
-      d.y = E.homeY + (E.H * 0.6 - E.homeY) * p + Math.sin(E.t * 2.3) * 4;
+      d.x = E.W / 2 + d.dx + shake + E.look.proj.x;
+      d.y = E.homeY + (E.H * 0.6 - E.homeY) * p + Math.sin(E.t * 2.3) * 4 + E.look.proj.y;
       d.sc = 1 + 0.3 * p;
     }
   }
@@ -624,7 +750,7 @@ const Catch = (() => {
     el['c-x'].addEventListener('pointerup', stopAll);
     el['c-x'].addEventListener('click', (ev) => { ev.stopPropagation(); exit('deck'); });
 
-    for (const id of ['c-leave', 'c-throw', 'c-cam', 'c-rings', 'c-celebrate']) {
+    for (const id of ['c-leave', 'c-throw', 'c-cam', 'c-look', 'c-rings', 'c-celebrate']) {
       el[id].addEventListener('pointerdown', stopAll);
       el[id].addEventListener('pointerup', stopAll);
     }
@@ -634,6 +760,22 @@ const Catch = (() => {
       ev.stopPropagation();
       if (!E) return;
       if (E.stream) { setCamPref(false); showSea(); } else { setCamPref(true); startCamera(); }
+    });
+    el['c-look'].addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (!E) return;
+      const on = !E.look.want;
+      setLookPref(on);
+      E.look.want = on;
+      if (on) {
+        // turning it on mid-encounter keeps the duck where it is on screen (no spawn offset)
+        E.look.anchored = false; E.look.spawnOffset = false; E.look.cam = null;
+        if (!E.stream) { setCamPref(true); startCamera(); }
+        requestMotion().then((ok) => {
+          if (!ok && E) { E.look.want = false; App.toast('Motion access is off, so the duck stays on screen.'); updateLookBtn(); }
+        });
+      } else if (E.look.pending) { E.look.pending = false; revealDuck(); }
+      updateLookBtn();
     });
     el['c-rings'].addEventListener('click', (ev) => {
       const b = ev.target.closest('[data-ring]');
@@ -662,5 +804,6 @@ const Catch = (() => {
 
   const active = () => !!E;
   const debug = () => E;   // for tests
-  return { init, start, exit, cleanup, active, debug };
+  const lookState = () => LOOK;
+  return { init, start, exit, cleanup, active, debug, lookState };
 })();

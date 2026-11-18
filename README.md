@@ -4,6 +4,7 @@ A cruise-themed creature-collecting game: catch ducks with a flick-thrown life r
 
 - **Live:** https://colonelfeldman.github.io/duck-duck-sail/ (also linked from allashore.app/games)
 - **Testing mode:** add `?test=1` to the URL. That gives 20-second encounters, 60-second sign cooldowns, simulate-scan buttons and a TESTING badge. It's remembered on that device; `?test=0` turns it off.
+- **Look-around mode (testing builds only for now):** with the camera on, the duck holds a direction in the room (from the phone's gyroscope) and you turn the phone to find it. An arrow says "Turn left/right" when it's off screen. 🧭 on the catch screen turns it on or off per device; iPhone asks once for motion access. Without motion data it falls back to the plain overlay. Settings are in `CONFIG.lookAround`; set `enabled: true` to give it to everyone.
 - **Spec/handoff:** kept locally in `docs/` (not published)
 
 ## Files
@@ -20,11 +21,12 @@ A cruise-themed creature-collecting game: catch ducks with a flick-thrown life r
 | `sw.js` | **Network-first** service worker, so testers get new deploys on reload and the cache is only used offline |
 | `supabase/` | SQL for the game's tables in the All Ashore Supabase project |
 | `tests/smoke.py` | Phone-size browser walkthrough of every QA gate it can automate |
+| `tests/look.py` | Look-around mode with a fake camera and simulated phone turning |
 | `tools/` | `bump-version.sh`, `make_icons.py` |
 
 ## Deploying a change
 1. `./tools/bump-version.sh` (updates `js/config.js` and `version.json` together)
-2. `python3 -m http.server 8765 --bind 127.0.0.1` then `python3 tests/smoke.py`
+2. `python3 -m http.server 8765 --bind 127.0.0.1` then `python3 tests/smoke.py` and `python3 tests/look.py`
 3. Commit and push `main`. GitHub Pages publishes in about a minute. Open copies show "New version available, tap to refresh".
 
 ## Save discipline

@@ -3,8 +3,8 @@
 A cruise-themed creature-collecting game: catch ducks with a flick-thrown life ring over your camera feed, reel them in, then power them up and promote them. Part of the All Ashore family. It's a plain static PWA with no build step and no framework.
 
 - **Live:** https://colonelfeldman.github.io/duck-duck-sail/ (also linked from allashore.app/games)
-- **Testing mode:** add `?test=1` to the URL. That gives 20-second encounters, 60-second sign cooldowns, simulate-scan buttons and a TESTING badge. It's remembered on that device; `?test=0` turns it off.
-- **Look-around mode (testing builds only for now):** with the camera on, the duck holds a direction in the room (from the phone's gyroscope) and you turn the phone to find it. An arrow says "Turn left/right" when it's off screen. 🧭 on the catch screen turns it on or off per device; iPhone asks once for motion access. Without motion data it falls back to the plain overlay. Settings are in `CONFIG.lookAround`; set `enabled: true` to give it to everyone.
+- **Testing mode:** ON by default while `PLAYTEST = true` in `js/config.js` (set it false before a wider release). `?test=1` / `?test=0` force it per device. That gives 20-second encounters, 60-second sign cooldowns, simulate-scan buttons and a TESTING badge. It's remembered on that device; `?test=0` turns it off.
+- **Look-around mode (on for everyone):** with the camera on, the duck holds a direction in the room (from the phone's gyroscope) and you turn the phone to find it. An arrow says "Turn left/right" when it's off screen. 🧭 on the catch screen turns it on or off per device; iPhone asks once for motion access. Without motion data it falls back to the plain overlay. Settings are in `CONFIG.lookAround`.
 - **Spec/handoff:** kept locally in `docs/` (not published)
 
 ## Files

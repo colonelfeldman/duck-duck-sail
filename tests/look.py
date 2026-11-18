@@ -92,10 +92,13 @@ with sync_playwright() as p:
     check(pg.evaluate("document.getElementById('duckwrap').style.visibility") == '' and not E('E.look.want'), 'no motion data → plain overlay after the wait')
     pg.click('#c-x')
 
-    # Production build (no ?test=1): look-around not offered
+    # Normal link (no ?test=1): look-around is offered too
+    pg.evaluate("localStorage.removeItem('dds_look')")
+    pg.evaluate(ORIENT_JS, {'a': 0, 'b': 90, 'g': 0})
     pg.goto(BASE + ('&' if '?' in BASE else '?') + 'test=0'); pg.wait_for_timeout(400)
-    pg.evaluate("Store.get().nextEncounterAt = 0; Store.get().encounterLog = []; App.startTimedEncounter()"); pg.wait_for_timeout(800)
-    check(not pg.is_visible('#c-look') and not E('E.look.want'), 'production build: no 🧭, classic overlay')
+    pg.evaluate(ORIENT_JS, {'a': 0, 'b': 90, 'g': 0})
+    pg.evaluate("Store.get().nextEncounterAt = 0; Store.get().encounterLog = []; App.startTimedEncounter()"); pg.wait_for_timeout(1500)
+    check(pg.is_visible('#c-look') and E('E.look.want') and E('E.look.anchored'), 'normal link: 🧭 shown and look-around active')
     b.close()
 
 for e in errors: print('PAGE ERROR:', e)

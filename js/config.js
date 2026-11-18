@@ -1,20 +1,22 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 
-// Testing mode: open the game with ?test=1 (remembered on this device), ?test=0 to turn it off.
 // Testing mode = 20 s encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
+// PLAYTEST: while only a couple of people are testing, the normal link IS the testing build.
+// Set PLAYTEST = false before a wider release → normal link gets the real 7-minute pace.
+// Either way, ?test=1 / ?test=0 forces it on/off on that device (remembered).
+const PLAYTEST = true;
 const TESTING = (() => {
-  let on = false;
+  const p = new URLSearchParams(location.search).get('test');
   try {
-    const p = new URLSearchParams(location.search).get('test');
     if (p === '1') localStorage.setItem('dds_test', '1');
-    if (p === '0') localStorage.removeItem('dds_test');
-    on = localStorage.getItem('dds_test') === '1';
+    if (p === '0') localStorage.setItem('dds_test', '0');
+    const v = localStorage.getItem('dds_test');
+    return v === null ? PLAYTEST : v === '1';
   } catch (e) {
-    on = new URLSearchParams(location.search).get('test') === '1';
+    return p === null ? PLAYTEST : p === '1';
   }
-  return on;
 })();
 
 const MIN = 60 * 1000, HOUR = 60 * MIN;
@@ -88,7 +90,7 @@ const CONFIG = {
   // Look-around mode (gyroscope): the duck holds a direction in the room and you turn the phone to find it.
   // Only with the camera on. iPhone asks once for motion access. Falls back to the plain overlay if no motion data.
   lookAround: {
-    enabled: TESTING,          // testing builds only until it's been playtested
+    enabled: true,             // on for everyone (Jeff, 2026-11-18); 🧭 lets a player turn it off
     defaultOn: true,           // per-device toggle (🧭 on the catch screen) remembers the player's choice
     fovDeg: 60,                // how many degrees of turning sweep across the screen width
     spawnYawDeg: [20, 45],     // the duck appears this far to the left or right of where you're facing

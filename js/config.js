@@ -1,6 +1,6 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 
 // Testing mode = 2 min between encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
 // PLAYTEST: while only a couple of people are testing, the normal link IS the testing build.
@@ -124,6 +124,19 @@ const CONFIG = {
     waitMs: 3000,              // how long to wait for camera + motion before falling back to the overlay
   },
 
+  // "Look for ducks": camera recognition (on-device). Recognized ducks skip the encounter timer.
+  recognize: {
+    enabled: true,
+    intervalMs: 300,           // how often a camera frame is checked
+    holdMs: 1200,              // the match must hold this long (steady) before a duck appears
+    graceFrames: 2,            // a frame or two of no-match doesn't reset the hold
+    minScore: 0.2,             // below this the model isn't sure enough to count
+    tiers: { strong: 0.5, excellent: 0.85 },   // average score → Form 2 / Form 3 (below strong = Form 1); tuned on test photos 2026-11-18
+    cooldownMs: TESTING ? 5 * MIN : 60 * MIN,  // per kind of thing (stage, food, …)
+    dailyCap: TESTING ? 30 : 8,                // recognized ducks per day, all kinds together
+    showReadout: TESTING,      // show what the phone thinks it sees (for tuning on the ship)
+  },
+
   // Flee: chance after each failure = base × failure points (miss = 0.5 point, slip-off = 1)
   fleeBase: { 1: 0.06, 2: 0.10, 3: 0.15 },
 
@@ -181,4 +194,28 @@ const SIGNS = [
     weights: null, lines: null, xpMult: CONFIG.xp.lifeRingStationMult, blurb: 'Catches here earn +50% XP.' },
   { id: 'DDS-SIGN-SANJUAN',  name: 'Welcome to San Juan', style: 'sanjuan', port: 'San Juan',
     weights: null, lines: null, blurb: "Port day! San Juan's own duck is out today." },
+];
+
+// What the camera can recognize → which duck line appears. Labels are exact names from the model's list
+// (ImageNet, via MediaPipe EfficientNet-Lite0). Deliberately NOT included: swimwear (would reward filming
+// people at the pool), places of worship and sacred objects.
+const RECOGNIZE_CATEGORIES = [
+  { id: 'stage', line: 'showtime', name: 'Stage & show', where: 'by the stage', hint: "Something's stirring by the stage…",
+    labels: ['theater curtain', 'stage', 'spotlight', 'microphone', 'grand piano', 'upright', 'electric guitar', 'acoustic guitar',
+             'drum', 'sax', 'cornet', 'violin', 'accordion', 'maraca', 'cinema'] },
+  { id: 'food', line: 'galley', name: 'Food & drink', where: 'near the food', hint: 'Something smells delicious…',
+    labels: ['plate', 'pizza', 'ice cream', 'ice lolly', 'espresso', 'coffee mug', 'cup', 'cheeseburger', 'hotdog', 'bagel', 'french loaf',
+             'pretzel', 'carbonara', 'guacamole', 'trifle', 'burrito', 'potpie', 'meat loaf', 'consomme', 'hot pot', 'chocolate sauce',
+             'eggnog', 'red wine', 'wine bottle', 'beer glass', 'cocktail shaker', 'granny smith', 'banana', 'pineapple', 'strawberry',
+             'orange', 'lemon', 'frying pan', 'wok', 'dining table', 'menu', 'restaurant'] },
+  { id: 'poolside', line: 'pool', name: 'Poolside', where: 'poolside', hint: "Something's splashing nearby…",
+    labels: ['sunscreen', 'lotion', 'bath towel', 'sunglasses', 'sunglass', 'umbrella', 'folding chair', 'water bottle'] },
+  { id: 'sea', line: 'explorer', name: 'Sea & shore', where: 'by the water', hint: "Something's paddling out there…",
+    labels: ['snorkel', 'coral reef', 'sandbar', 'seashore', 'lakeside', 'promontory', 'cliff', 'volcano', 'starfish', 'sea anemone',
+             'jellyfish', 'conch', 'canoe', 'paddle', 'catamaran', 'trimaran', 'speedboat', 'breakwater'] },
+  { id: 'sights', line: 'tourist', name: 'Sightseeing', where: 'sightseeing', hint: "Something's taking in the sights…",
+    labels: ['backpack', 'reflex camera', 'polaroid camera', 'binoculars', 'street sign', 'palace', 'castle', 'triumphal arch', 'obelisk',
+             'fountain', 'cab', 'trolleybus', 'streetcar', 'steel arch bridge', 'suspension bridge'] },
+  { id: 'ship', line: 'crew', name: 'Ships & harbor', where: 'by the ships', hint: "Something's on deck…",
+    labels: ['liner', 'container ship', 'lifeboat', 'pier', 'dock', 'schooner', 'yawl', 'fireboat', 'beacon', 'paddlewheel'] },
 ];

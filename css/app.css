@@ -85,7 +85,7 @@ small { color: var(--muted); }
   color: var(--muted); background: rgba(255,255,255,.88); border-top: 1px solid var(--line); z-index: 4; }
 .foot .testbadge { display: none; margin-left: 6px; background: var(--coral); color: #fff; font-weight: 800; border-radius: 6px; padding: 1px 6px; font-size: .7rem; }
 body.testing .foot .testbadge { display: inline; }
-body[data-screen="catch"] .foot, body[data-screen="scan"] .foot { display: none; }
+body[data-screen="catch"] .foot, body[data-screen="scan"] .foot, body[data-screen="look"] .foot { display: none; }
 
 /* ---------- catch ---------- */
 .catch { position: fixed; inset: 0; z-index: var(--z-catch); overflow: hidden; padding: 0; background: #0E6BAE; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -124,7 +124,7 @@ body[data-screen="catch"] .foot, body[data-screen="scan"] .foot { display: none;
 .c-find.top { top: calc(110px + var(--safe-t)); left: 50%; transform: translateX(-50%); }
 .c-find.bottom { bottom: calc(230px + var(--safe-b)); left: 50%; transform: translateX(-50%); }
 @keyframes pulse2 { from { opacity: .75; } to { opacity: 1; } }
-.c-safety { position: absolute; top: calc(70px + var(--safe-t)); left: 50%; transform: translateX(-50%); background: rgba(255,255,255,.85); color: var(--ink);
+.c-safety { position: absolute; top: calc(104px + var(--safe-t)); left: 50%; transform: translateX(-50%); background: rgba(255,255,255,.85); color: var(--ink);
   font-size: .78rem; font-weight: 700; border-radius: 99px; padding: 4px 10px; z-index: 5; pointer-events: none; white-space: nowrap; }
 .c-msg { position: absolute; top: 20%; left: 0; right: 0; text-align: center; font-size: 2rem; font-weight: 900; color: #fff; z-index: 5;
   text-shadow: 0 3px 0 rgba(0,0,0,.25), 0 0 18px rgba(0,0,0,.25); pointer-events: none; opacity: 0; transform: scale(.8); transition: .2s; }
@@ -340,3 +340,14 @@ form textarea, form input { display: block; width: 100%; margin-top: 4px; border
 
 @media (min-width: 600px) { .crew-grid { grid-template-columns: repeat(4, 1fr); } .signs-grid { grid-template-columns: repeat(4, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .sea .wave, .encounter .big { animation: none; } }
+
+/* ---------- look for ducks ---------- */
+.lookfor { width: 100%; border: 0; border-radius: 18px; padding: 14px 16px; margin: 6px 0 2px; color: #fff; text-align: left;
+  background: linear-gradient(135deg, #0E6BAE, #1B8FD1); box-shadow: 0 4px 0 #0a4f80; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; font-size: 1.4rem; align-items: center; }
+.lookfor b { font-size: 1.02rem; } .lookfor span { grid-column: 2; font-size: .8rem; color: #d9efff; }
+.look-progress { position: absolute; left: 14%; right: 14%; bottom: 8%; height: 10px; border-radius: 99px; background: rgba(0,0,0,.45); overflow: hidden; }
+.look-progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #FFD43B, #FF8C1A); transition: width .25s; }
+.look-readout { margin: 10px 16px; padding: 10px 12px; border: 2px dashed var(--coral); border-radius: 14px; font-size: .82rem; }
+.look-readout div { display: flex; gap: 8px; align-items: center; padding: 2px 0; color: #9fb1c8; }
+.look-readout div span { flex: 1; } .look-readout div i { font-style: normal; color: #FFD43B; font-weight: 700; }
+.look-readout div.hit { color: #fff; }

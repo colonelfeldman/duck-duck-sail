@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="css/app.css?v=1.1.0">
+  <link rel="stylesheet" href="css/app.css?v=1.2.0">
 </head>
 <body data-screen="deck">
 
@@ -34,6 +34,7 @@
     </div>
     <div id="d-venue" class="venue" hidden></div>
     <button id="d-encounter" class="encounter"></button>
+    <button class="lookfor" data-go="look">🔍 <b>Look for ducks</b><span>Point your camera around — ducks hide near things they love</span></button>
     <p class="safety-line">🛑 Stop walking before you catch.</p>
     <div class="navgrid">
       <button class="navbtn" data-go="crew">🦆<span>Crew</span></button>
@@ -125,6 +126,17 @@
   <p id="scan-status" class="scan-status"></p>
   <p class="scan-note">Codes are read on this phone. Nothing is recorded or uploaded.</p>
   <div id="scan-sim" class="scan-sim" hidden></div>
+</section>
+
+<!-- ============ LOOK FOR DUCKS (camera recognition) ============ -->
+<section id="scr-look" class="screen scan look" hidden>
+  <header class="topbar dark"><button class="iconbtn light" data-go="deck" aria-label="Back">‹</button><div class="title">Look for ducks</div><span></span></header>
+  <div class="viewfinder"><video id="look-video" playsinline muted autoplay></video><div class="frame"></div>
+    <div class="look-progress"><i id="look-bar"></i></div></div>
+  <p id="look-status" class="scan-status"></p>
+  <p class="scan-note">🛑 Stand still while you look. Everything is checked on this phone — nothing is recorded or uploaded.</p>
+  <p id="look-limit" class="scan-note"></p>
+  <div id="look-readout" class="look-readout" hidden></div>
 </section>
 
 <!-- ============ OVERLAYS ============ -->
@@ -225,12 +237,13 @@
 
 <footer class="foot"><span id="ver"></span><span class="testbadge">TESTING</span> · <button class="linkbtn" data-feedback>Send feedback</button></footer>
 
-<script src="vendor/qrcode.js?v=1.1.0"></script>
-<script src="vendor/jsQR.js?v=1.1.0"></script>
-<script src="js/config.js?v=1.1.0"></script>
-<script src="js/art.js?v=1.1.0"></script>
-<script src="js/store.js?v=1.1.0"></script>
-<script src="js/catch.js?v=1.1.0"></script>
-<script src="js/app.js?v=1.1.0"></script>
+<script src="vendor/qrcode.js?v=1.2.0"></script>
+<script src="vendor/jsQR.js?v=1.2.0"></script>
+<script src="js/config.js?v=1.2.0"></script>
+<script src="js/art.js?v=1.2.0"></script>
+<script src="js/store.js?v=1.2.0"></script>
+<script src="js/recognize.js?v=1.2.0"></script>
+<script src="js/catch.js?v=1.2.0"></script>
+<script src="js/app.js?v=1.2.0"></script>
 </body>
 </html>

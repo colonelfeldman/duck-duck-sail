@@ -142,7 +142,10 @@ const Store = (() => {
       color: 'yellow',
       acc: null,
     };
-    if (opts.port && Math.random() < CONFIG.portDuckShare) {
+    if (opts.forceLine) {                     // camera recognition decides the line and form
+      base.line = opts.forceLine;
+      base.form = opts.forceForm || 1;
+    } else if (opts.port && Math.random() < CONFIG.portDuckShare) {
       Object.assign(base, { line: 'port', port: opts.port, form: 2 });   // form 2 = Uncommon catch difficulty
     } else {
       base.line = pickWeighted(opts.lines || (opts.port ? CONFIG.lineWeights.port : CONFIG.lineWeights.ship));

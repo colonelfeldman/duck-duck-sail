@@ -225,7 +225,7 @@ const Catch = (() => {
     const S = Store.get();
     E = {
       timers: new Set(),
-      wild: Store.rollWild(opts.weights, { lines: opts.lines, port: opts.port }),
+      wild: Store.rollWild(opts.weights, { lines: opts.lines, port: opts.port, forceLine: opts.forceLine, forceForm: opts.forceForm }),
       provenance: opts.provenance || 'Caught on board (ship mode)',
       xpMult: opts.xpMult || 1,
       label: opts.label || '',
@@ -239,7 +239,8 @@ const Catch = (() => {
       raf: 0, last: 0, t: 0,
       stream: null,
       holding: false,
-      look: { want: false, pending: false, anchored: false, spawnOffset: true, cam: null, duckYaw: 0, duckPitch: 0, proj: { x: 0, y: 0 } },
+      look: { want: false, pending: false, anchored: false, spawnOffset: !opts.spawnHere,   // recognized ducks appear where you're pointing
+              cam: null, duckYaw: 0, duckPitch: 0, proj: { x: 0, y: 0 } },
     };
     // Look-around: ask for motion access now, while we're still inside the player's tap.
     if (LA().enabled && camPref() && lookPref()) {

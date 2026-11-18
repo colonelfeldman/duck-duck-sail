@@ -18,6 +18,7 @@ const App = (() => {
   function go(name, arg) {
     if (current === 'catch' && name !== 'catch' && Catch.active()) Catch.cleanup();
     if (current === 'scan' && name !== 'scan') Scanner.stop();
+    if (current === 'look' && name !== 'look') Recognize.stop();
     cancelFx();
     closeMenu();
     current = name;
@@ -29,6 +30,7 @@ const App = (() => {
     if (name === 'passport') renderPassport();
     if (name === 'signs') renderSigns();
     if (name === 'scan') Scanner.start();
+    if (name === 'look') { if (crewFull()) return go('deck'); Recognize.start(); }
     window.scrollTo(0, 0);
   }
   const screen = () => current;

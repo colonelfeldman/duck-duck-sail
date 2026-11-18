@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Duck, Duck, Sail!</title>
+  <meta name="description" content="Catch, power up and promote cruise ducks on your sailing.">
+  <meta name="theme-color" content="#0B4F8A">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-screen="deck">
+
+<!-- ============ DECK ============ -->
+<section id="scr-deck" class="screen">
+  <header class="topbar">
+    <div class="logo">🦆 Duck, Duck, <span>Sail!</span></div>
+    <button id="menu-btn" class="iconbtn" aria-label="Menu">☰</button>
+  </header>
+  <div class="wrap">
+    <div class="card voyager">
+      <div class="vl"><small>Voyager Level</small><b id="d-level">1</b></div>
+      <div class="xpwrap"><div class="xpbar"><i id="d-xpbar"></i></div><small id="d-xp">0 / 250 XP</small></div>
+    </div>
+    <div class="res">
+      <div><small>Shells</small><b>🐚 <span id="d-shells">0</span></b></div>
+      <div><small>Duck Treats</small><b>🍪 <span id="d-treats">0</span></b></div>
+      <div><small>Crew</small><b>🦆 <span id="d-crew">0</span></b></div>
+      <div><small>Rings</small><b class="rings"><span class="rp">P×<span id="d-premium">0</span></span> <span class="rg">G×<span id="d-golden">0</span></span></b></div>
+    </div>
+    <div id="d-venue" class="venue" hidden></div>
+    <button id="d-encounter" class="encounter"></button>
+    <p class="safety-line">🛑 Stop walking before you catch.</p>
+    <div class="navgrid">
+      <button class="navbtn" data-go="crew">🦆<span>Crew</span></button>
+      <button class="navbtn" data-go="passport">🛂<span>Passport</span></button>
+      <button class="navbtn" data-go="scan">📷<span>Scan a Sign</span></button>
+      <button class="navbtn" data-go="signs">🪧<span>Sign Cards</span></button>
+      <button class="navbtn" data-howto>❓<span>How to Play</span></button>
+      <button class="navbtn" data-safety>🛟<span>Play Safe</span></button>
+    </div>
+    <button class="feedback-btn" data-feedback>💬 Send feedback</button>
+  </div>
+</section>
+
+<!-- ============ CATCH ============ -->
+<section id="scr-catch" class="screen catch" hidden>
+  <video id="cam" playsinline muted autoplay hidden></video>
+  <div id="sea" class="sea">
+    <div class="sky"></div>
+    <svg class="wave w1" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0 60 Q150 20 300 60 T600 60 T900 60 T1200 60 V120 H0 Z"/></svg>
+    <svg class="wave w2" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0 60 Q150 100 300 60 T600 60 T900 60 T1200 60 V120 H0 Z"/></svg>
+    <svg class="wave w3" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0 60 Q150 25 300 60 T600 60 T900 60 T1200 60 V120 H0 Z"/></svg>
+  </div>
+  <div id="stage">
+    <div id="splash"><i></i><i></i><i></i></div>
+    <div id="duckwrap"><div class="dk"><div class="rb"></div><div class="art"></div><div class="rf"></div></div></div>
+    <svg id="rope" preserveAspectRatio="none"><line stroke="#f4e3c0" stroke-width="4" stroke-dasharray="10 5"/></svg>
+    <div id="flyring"></div>
+  </div>
+  <div class="catch-top">
+    <div id="c-info" class="c-info"></div>
+    <button id="c-cam" class="iconbtn light" aria-label="Toggle camera">📷</button>
+    <button id="c-x" class="iconbtn light xbtn" aria-label="Exit to Deck">✕</button>
+  </div>
+  <div class="c-safety">🛑 Stand still to catch</div>
+  <div id="c-msg" class="c-msg"></div>
+  <div id="c-cue" class="c-cue">Struggling!</div>
+  <div id="c-hint" class="c-hint"></div>
+  <div id="c-spin" class="c-spin"><div class="track"><i id="c-spin-fill"></i><b></b></div><span id="c-spin-label">Spin</span></div>
+  <div id="c-reel" class="c-reel" hidden>
+    <div class="meter"><small>Progress</small><div class="bar prog"><i id="c-prog"></i></div></div>
+    <div class="meter"><small>Tension</small><div class="bar tens"><i id="c-tens"></i></div></div>
+    <button id="c-reel-btn" class="reelbtn">Hold to REEL</button>
+  </div>
+  <div id="c-bottom" class="c-bottom">
+    <div id="c-rings" class="c-rings"></div>
+    <div class="row">
+      <button id="c-leave" class="btn ghost small">Leave Encounter</button>
+      <button id="c-throw" class="btn small">Throw (button)</button>
+    </div>
+  </div>
+  <div id="c-celebrate" class="c-celebrate" hidden></div>
+</section>
+
+<!-- ============ CREW ============ -->
+<section id="scr-crew" class="screen" hidden>
+  <header class="topbar"><button class="iconbtn" data-go="deck" aria-label="Back">‹</button><div class="title">Crew <small id="crew-count"></small></div>
+    <select id="crew-sort" aria-label="Sort"><option value="recent">Recent</option><option value="power">Sail Power</option><option value="level">Level</option><option value="form">Form</option></select></header>
+  <div class="wrap"><div id="crew-grid" class="crew-grid"></div></div>
+</section>
+
+<!-- ============ DETAIL ============ -->
+<section id="scr-detail" class="screen" hidden>
+  <header class="topbar"><button class="iconbtn" data-go="crew" aria-label="Back">‹</button><div class="title">Crew member</div><span></span></header>
+  <div class="wrap detail" id="detail-body"></div>
+</section>
+
+<!-- ============ PASSPORT ============ -->
+<section id="scr-passport" class="screen" hidden>
+  <header class="topbar"><button class="iconbtn" data-go="deck" aria-label="Back">‹</button><div class="title">Passport</div><span></span></header>
+  <div class="wrap" id="passport-body"></div>
+</section>
+
+<!-- ============ SIGN CARDS ============ -->
+<section id="scr-signs" class="screen" hidden>
+  <header class="topbar"><button class="iconbtn" data-go="deck" aria-label="Back">‹</button><div class="title">Sign Cards</div><span></span></header>
+  <div class="wrap">
+    <p class="intro">These are test signs. Show one on a <b>second device</b> or print it — a phone can't scan its own screen. Then use <b>Scan a Sign</b> on the phone you play on.</p>
+    <div id="signs-grid" class="signs-grid"></div>
+    <button class="btn primary block" data-go="scan">📷 Open the scanner</button>
+  </div>
+</section>
+
+<!-- ============ SCANNER ============ -->
+<section id="scr-scan" class="screen scan" hidden>
+  <header class="topbar dark"><button class="iconbtn light" data-go="deck" aria-label="Back">‹</button><div class="title">Scan a Sign</div><span></span></header>
+  <div class="viewfinder"><video id="scan-video" playsinline muted autoplay></video><div class="frame"></div></div>
+  <p id="scan-status" class="scan-status"></p>
+  <p class="scan-note">Codes are read on this phone. Nothing is recorded or uploaded.</p>
+  <div id="scan-sim" class="scan-sim" hidden></div>
+</section>
+
+<!-- ============ OVERLAYS ============ -->
+<div id="fx" class="fx" hidden></div>
+
+<div id="menu" class="overlay menu" hidden>
+  <div class="panel">
+    <button class="x" data-close aria-label="Close">✕</button>
+    <h2>Menu</h2>
+    <button class="mi" data-go="deck">🚢 Deck</button>
+    <button class="mi" data-go="crew">🦆 Crew</button>
+    <button class="mi" data-go="passport">🛂 Passport</button>
+    <button class="mi" data-go="scan">📷 Scan a Sign</button>
+    <button class="mi" data-go="signs">🪧 Sign Cards</button>
+    <button class="mi" data-howto>❓ How to Play</button>
+    <button class="mi" data-safety>🛟 Play Safe</button>
+    <button class="mi strong" data-feedback>💬 Send feedback</button>
+  </div>
+</div>
+
+<div id="howto" class="overlay" hidden>
+  <div class="panel scroll">
+    <button class="x" data-close aria-label="Close">✕</button>
+    <h2>How to Play</h2>
+    <p><b>Welcome aboard!</b> You start with <b id="howto-starter"></b> so you can power up and promote your first crew straight away.</p>
+    <h3>Catch</h3>
+    <ul>
+      <li>When a duck is nearby, tap the big button on the Deck.</li>
+      <li><b>Flick</b> the life ring up at the duck. The direction you flick is where it goes; how fast you flick is how far. Too soft falls short, too hard flies over.</li>
+      <li>Ducks bob and dodge — aim where the duck <i>will be</i>.</li>
+      <li><b>Spin:</b> circle the ring with your finger before you flick. Spin curves the throw. Enough spin is a <b>Curveball</b>: bonus XP and an easier reel.</li>
+      <li>The ring has to land on the duck: <b>Excellent</b>, <b>Great</b> or <b>Nice</b>. A miss splashes in the water.</li>
+      <li><b>Premium</b> and <b>Golden</b> rings are easier to land and reel, and are used up on every throw. You get a Premium Ring each Voyager level.</li>
+      <li>Ducks can paddle away after too many misses.</li>
+    </ul>
+    <h3>Rescue reel</h3>
+    <ul>
+      <li>Once the ring is round its neck, <b>hold</b> to reel the duck in.</li>
+      <li>When it shows <b>Struggling!</b>, ease off. If the tension stays maxed out, the ring slips off.</li>
+    </ul>
+    <h3>Grow your crew</h3>
+    <ul>
+      <li>Each catch: <span id="howto-catch"></span> and XP.</li>
+      <li><b>Power Up</b> with Shells + Treats to raise a duck's level and Sail Power.</li>
+      <li><b>Promote</b> with Duck Treats: Cruise Duck → Sailor Duck (25) → Captain Duck (100).</li>
+      <li>About 1 in 128 ducks is <b>Gold</b>.</li>
+      <li>Release a duck to the Harbormaster for +1 Duck Treat.</li>
+    </ul>
+    <h3>Signs</h3>
+    <ul>
+      <li>Scan a game sign to start an encounter there. The spot stays active for 30 minutes and changes which ducks appear.</li>
+      <li>Port signs add a stamp to your Passport.</li>
+    </ul>
+    <h3>Play safe</h3>
+    <p>Stop walking before you catch. Play in public lounges and on open decks only — not on stairs, by the pool edge, or in crew areas.</p>
+    <button class="btn primary block" data-close>Let's go!</button>
+  </div>
+</div>
+
+<div id="safety" class="overlay" hidden>
+  <div class="panel center">
+    <div class="bigicon">🛟</div>
+    <h2>Play safe on board</h2>
+    <p><b>Stop walking before you catch.</b> Never play while moving, on stairs, or near the pool edge.</p>
+    <p>Play in public lounges and on open decks. The camera is only used on your phone; nothing is recorded or uploaded.</p>
+    <button class="btn primary block" id="safety-ok">Got it</button>
+  </div>
+</div>
+
+<div id="feedback" class="overlay" hidden>
+  <div class="panel">
+    <button class="x" data-close aria-label="Close">✕</button>
+    <h2>Send feedback</h2>
+    <form id="fb-form">
+      <label>What's on your mind? <i>(required)</i><textarea id="fb-message" rows="5" maxlength="4000" required></textarea></label>
+      <label>Your name <i>(optional)</i><input id="fb-name" maxlength="100" autocomplete="name"></label>
+      <label>How to reach you <i>(optional)</i><input id="fb-contact" maxlength="200"></label>
+      <p id="fb-status" class="fb-status" role="status"></p>
+      <button id="fb-send" class="btn primary block" type="submit">Send</button>
+    </form>
+  </div>
+</div>
+
+<div id="signfull" class="overlay signfull" hidden></div>
+
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-panel">
+    <button class="x" data-close aria-label="Close">✕</button>
+    <div class="sheet-body"></div>
+  </div>
+</div>
+
+<div id="lvl-banner" class="lvl-banner" hidden></div>
+<div id="toast" class="toast" hidden></div>
+<button id="update-bar" class="update-bar" hidden>New version available — tap to refresh</button>
+
+<footer class="foot"><span id="ver"></span><span class="testbadge">TESTING</span> · <button class="linkbtn" data-feedback>Send feedback</button></footer>
+
+<script src="vendor/qrcode.js"></script>
+<script src="vendor/jsQR.js"></script>
+<script src="js/config.js"></script>
+<script src="js/art.js"></script>
+<script src="js/store.js"></script>
+<script src="js/catch.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

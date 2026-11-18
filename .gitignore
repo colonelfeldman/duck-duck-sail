@@ -1,0 +1,4 @@
+tests/out/
+.DS_Store
+__pycache__/
+docs/

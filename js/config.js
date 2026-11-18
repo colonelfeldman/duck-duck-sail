@@ -1,8 +1,8 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.0.5';
+const VERSION = '1.0.6';
 
-// Testing mode = 20 s encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
+// Testing mode = 2 min between encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
 // PLAYTEST: while only a couple of people are testing, the normal link IS the testing build.
 // Set PLAYTEST = false before a wider release → normal link gets the real 7-minute pace.
 // Either way, ?test=1 / ?test=0 forces it on/off on that device (remembered).
@@ -23,7 +23,7 @@ const MIN = 60 * 1000, HOUR = 60 * MIN;
 
 const CONFIG = {
   // Encounters
-  encounterCooldownMs: TESTING ? 20 * 1000 : 7 * MIN,
+  encounterCooldownMs: TESTING ? 2 * MIN : 7 * MIN,    // testing: 2 min (Jeff, 2026-11-18)
   encountersPerHourCap: TESTING ? 999 : 6,
 
   // Economy

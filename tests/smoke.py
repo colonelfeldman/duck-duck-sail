@@ -3,6 +3,9 @@
 #   python3 tests/smoke.py
 # Screenshots go to tests/out/. Exits non-zero on any failed check or page error.
 import pathlib, sys, time
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from mock_supabase import MockSupabase, login
 from playwright.sync_api import sync_playwright
 
 import os
@@ -20,10 +23,12 @@ def shot(pg, name): pg.screenshot(path=str(OUT / f'{name}.png'))
 with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 412, 'height': 860}, device_scale_factor=2, is_mobile=True, has_touch=True)
+    mock = MockSupabase(); mock.install(ctx)
     pg = ctx.new_page()
     pg.on('pageerror', lambda e: errors.append(str(e)))
     pg.on('console', lambda m: m.type == 'error' and errors.append(m.text))
     pg.goto(BASE + '?test=1')
+    login(pg)                      # accounts: sign in + create a player first
     pg.wait_for_timeout(500)
 
     # ---- first run ----
@@ -269,17 +274,18 @@ with sync_playwright() as p:
     check("Couldn't send" in pg.inner_text('#fb-status') and pg.input_value('#fb-message') == 'smoke test', 'broken connection → honest failure, message kept')
 
     # ---- save migration ----
-    pg.evaluate("""localStorage.setItem('dds_save', JSON.stringify({shells: 120, treats: 9, xp: 10, level: 2,
+    mock.fail = True               # reload offline so the account copy doesn't replace the test save
+    pg.evaluate("""localStorage.setItem('dds_save:' + Account.current().id, JSON.stringify({shells: 120, treats: 9, xp: 10, level: 2,
         crew: [{id:'old1', species:'duck', form:2, level:7, size:'L', gold:false, caughtAt: 1, provenance:['Caught on board']}]}))""")
-    pg.reload(); pg.wait_for_timeout(500)
+    pg.reload(); pg.wait_for_function("document.body.dataset.screen === 'deck' && !!Store.get()", timeout=15000)
     S = pg.evaluate("Store.get()")
     check(S['v'] == 3 and len(S['crew']) == 1 and S['crew'][0]['id'] == 'old1' and S['crew'][0]['line'] == 'crew' and S['treats']['duck'] == 9 and S['rings']['premium'] == 5 and S['rings']['life'] == 35,
           'prototype-shaped save migrates (v0→v3) without losing the crew; Crew line; full Life Ring bag for its level')
     # v1 save (first distributed build) → v2
-    pg.evaluate("""localStorage.setItem('dds_save', JSON.stringify({v: 1, shells: 50, treats: {duck: 4}, rings: {premium: 2, golden: 0}, xp: 0, level: 3,
+    pg.evaluate("""localStorage.setItem('dds_save:' + Account.current().id, JSON.stringify({v: 1, shells: 50, treats: {duck: 4}, rings: {premium: 2, golden: 0}, xp: 0, level: 3,
         everHeld: {'duck-1': true, 'duck-3': true}, goldHeld: {'duck-3': true},
         crew: [{id:'v1a', species:'duck', form:3, level:9, size:'S', gold:true, caughtAt: 1, provenance:['x'], promoted:false}]}))""")
-    pg.reload(); pg.wait_for_timeout(500)
+    pg.reload(); pg.wait_for_function("document.body.dataset.screen === 'deck' && !!Store.get()", timeout=15000)
     S = pg.evaluate("Store.get()")
     check(S['v'] == 3 and S['crew'][0]['line'] == 'crew' and S['everHeld'].get('crew-3') and S['goldHeld'].get('crew-3') and 'duck-1' not in S['everHeld'] and S['rings']['life'] == 40,
           'v1 save migrates to v3: crew kept, Passport keys moved, Life Rings = bag size for Voyager Lv 3')
@@ -353,7 +359,7 @@ with sync_playwright() as p:
     pg.evaluate("App.go('passport')"); pg.wait_for_timeout(300)
     shot(pg, '27-passport-lines')
     check('San Juan Duck' in pg.inner_text('#passport-body') and '/ 19 ducks' in pg.inner_text('#passport-body'), 'Passport lists 6 lines + port ducks (19 total)')
-    check(pg.evaluate("!!localStorage.getItem('dds_save_backup_v0')"), 'pre-migration backup kept')
+    check(pg.evaluate("!!localStorage.getItem('dds_save:' + Account.current().id + '_backup_v0')"), 'pre-migration backup kept')
     b.close()
 
 errors = [e for e in errors if 'getUserMedia' not in e and 'NotSupported' not in e and 'Permission' not in e and 'ERR_' not in e and '127.0.0.1:9' not in e]

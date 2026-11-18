@@ -11,12 +11,50 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="css/app.css?v=1.3.0">
+  <link rel="stylesheet" href="css/app.css?v=1.4.0">
 </head>
 <body data-screen="deck">
 
+<!-- ============ SIGN IN (same login as All Ashore) ============ -->
+<section id="scr-auth" class="screen gate">
+  <div class="wrap narrow">
+    <div class="gate-logo">🦆 Duck, Duck, <span>Sail!</span></div>
+    <div class="card">
+      <h2 id="auth-title">Sign in to play</h2>
+      <p class="note">Use your <b>All Ashore</b> account — it's the same login.</p>
+      <form id="auth-form" autocomplete="on">
+        <label>Email<input id="auth-email" type="email" autocomplete="email" required></label>
+        <label id="auth-pass-row">Password<input id="auth-pass" type="password" autocomplete="current-password"></label>
+        <label id="auth-age-row" class="check" hidden><input id="auth-age" type="checkbox"> I'm 13 or older. (Kids under 13 play on a profile I add after signing up.)</label>
+        <p id="auth-msg" class="fb-status" role="status"></p>
+        <button id="auth-submit" class="btn primary block" type="submit">Sign in</button>
+      </form>
+      <button id="auth-google" class="btn block" hidden>Continue with Google</button>
+      <p id="auth-switch" class="auth-switch"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHO'S PLAYING (profiles) ============ -->
+<section id="scr-profiles" class="screen gate" hidden>
+  <div class="wrap narrow">
+    <div class="gate-logo">🦆 Duck, Duck, <span>Sail!</span></div>
+    <h2 class="center">Who's playing?</h2>
+    <div id="profiles-grid" class="profiles-grid"></div>
+    <button id="profiles-add" class="btn block">+ Add a player</button>
+    <form id="profiles-form" class="card" hidden>
+      <label>Player name<input id="pf-name" maxlength="20" placeholder="First name or nickname" autocomplete="off"></label>
+      <p class="note">Just a first name or nickname — nothing else is needed, especially for kids.</p>
+      <label id="pf-kid-row" class="check"><input id="pf-kid" type="checkbox"> This player is a child under 13</label>
+      <button id="pf-submit" class="btn primary block" type="submit">Add player</button>
+    </form>
+    <p id="profiles-msg" class="fb-status"></p>
+    <p class="note center">Signed in as <span id="profiles-email"></span> · <button class="linkbtn" data-signout>Sign out</button></p>
+  </div>
+</section>
+
 <!-- ============ DECK ============ -->
-<section id="scr-deck" class="screen">
+<section id="scr-deck" class="screen" hidden>
   <header class="topbar">
     <div class="logo">🦆 Duck, Duck, <span>Sail!</span></div>
     <button id="menu-btn" class="iconbtn" aria-label="Menu">☰</button>
@@ -153,6 +191,8 @@
     <button class="mi" data-go="scan">📷 Scan a Sign</button>
     <button class="mi" data-go="signs">🪧 Sign Cards</button>
     <button class="mi" data-stats>📊 My stats</button>
+    <button class="mi" data-switch>👥 Switch player</button>
+    <button class="mi" data-signout>🚪 Sign out</button>
     <button class="mi" data-howto>❓ How to Play</button>
     <button class="mi" data-safety>🛟 Play Safe</button>
     <button class="mi strong" data-feedback>💬 Send feedback</button>
@@ -247,15 +287,17 @@
 <div id="toast" class="toast" hidden></div>
 <button id="update-bar" class="update-bar" hidden>New version available — tap to refresh</button>
 
-<footer class="foot"><span id="ver"></span><span class="testbadge">TESTING</span> · <button class="linkbtn" data-feedback>Send feedback</button></footer>
+<footer class="foot"><span class="foot-who"><span id="foot-player"></span> <span id="sync-status" class="sync"></span> · </span><span id="ver"></span><span class="testbadge">TESTING</span> · <button class="linkbtn" data-feedback>Send feedback</button></footer>
 
-<script src="vendor/qrcode.js?v=1.3.0"></script>
-<script src="vendor/jsQR.js?v=1.3.0"></script>
-<script src="js/config.js?v=1.3.0"></script>
-<script src="js/art.js?v=1.3.0"></script>
-<script src="js/store.js?v=1.3.0"></script>
-<script src="js/recognize.js?v=1.3.0"></script>
-<script src="js/catch.js?v=1.3.0"></script>
-<script src="js/app.js?v=1.3.0"></script>
+<script src="vendor/supabase.js?v=1.4.0"></script>
+<script src="vendor/qrcode.js?v=1.4.0"></script>
+<script src="vendor/jsQR.js?v=1.4.0"></script>
+<script src="js/config.js?v=1.4.0"></script>
+<script src="js/art.js?v=1.4.0"></script>
+<script src="js/store.js?v=1.4.0"></script>
+<script src="js/recognize.js?v=1.4.0"></script>
+<script src="js/catch.js?v=1.4.0"></script>
+<script src="js/account.js?v=1.4.0"></script>
+<script src="js/app.js?v=1.4.0"></script>
 </body>
 </html>

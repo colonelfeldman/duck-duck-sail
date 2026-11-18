@@ -3,6 +3,8 @@
 # Part A always runs (logic with fake model output). Part B runs the REAL model on photos used as the
 # camera: set DDS_PHOTOS to a folder of .jpg files named after what they show (stage*, pizza*, coral*, ...).
 import os, sys, glob, pathlib, shutil, tempfile
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from mock_supabase import MockSupabase, login
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get('DDS_BASE', 'http://127.0.0.1:8765/index.html')
@@ -19,9 +21,10 @@ def page(p, fake_file=None):
     b = p.chromium.launch(args=args)
     ctx = b.new_context(viewport={'width': 412, 'height': 860}, device_scale_factor=2, is_mobile=True, has_touch=True)
     ctx.grant_permissions(['camera'], origin=ORIGIN)
+    MockSupabase().install(ctx)
     pg = ctx.new_page()
     pg.on('pageerror', lambda e: errors.append(str(e)))
-    pg.goto(BASE + '?test=1'); pg.wait_for_timeout(400)
+    pg.goto(BASE + '?test=1'); login(pg); pg.wait_for_timeout(300)
     pg.evaluate("document.getElementById('safety').hidden = true; Store.get().seen.safety = true; Store.save()")
     return b, pg
 
@@ -72,8 +75,20 @@ with sync_playwright() as p:
     r = pg.evaluate("(() => Recognize.step([{categoryName:'sunscreen', score: 0.9}], 400000).status)()")
     check(r == 'holding', 'a different kind of thing still works')
     pg.evaluate("Recognize.state().count = CONFIG.recognize.dailyCap; Store.save(); App.go('look')"); pg.wait_for_timeout(500)
-    check('all the hidden ducks for today' in pg.inner_text('#look-status'), 'daily cap reached → friendly stop message')
+    pg.wait_for_function("document.getElementById('look-status').innerText.includes('No more hidden ducks today')", timeout=60000)
+    check(True, 'daily cap reached → no more ducks, but life rings still work')
     pg.evaluate("Recognize.state().count = 0; Store.save(); App.go('deck')")
+    # life ring spotted → +10 Life Rings, no encounter, cooldown, bag cap
+    pg.evaluate("(() => { const S = Store.get(); S.rings.life = 5; S.lifeScanAt = 0; Store.save(); App.go('deck'); })()")
+    pg.evaluate("Recognize._found({cat: {id: 'lifering', name: 'Life ring', refill: true}, avg: 0.9, form: 1, label: 'life ring'})")
+    check(pg.evaluate("Store.get().rings.life") == 15 and not pg.evaluate("Catch.active()"), 'spotting a life ring restocks +10 Life Rings (no encounter)')
+    check(pg.evaluate("Recognize.ringCooldownLeft()") > 0, 'life-ring restock then cools down')
+    if pg.evaluate("typeof LIFERING_MODEL") == 'object':
+        check(len(pg.evaluate("LIFERING_MODEL.w")) == 1000, 'trained life-ring model is loaded (1000 weights)')
+    else:
+        print('  (life-ring model not trained yet — skipping model checks)')
+    check(pg.evaluate("Recognize.ringProb([{index: 0, score: 1, categoryName: 'tench'}])") < 0.5, 'a fish is not a life ring')
+
     # real model loads in the browser (wasm + tflite) and classifies a camera frame
     pg.evaluate("App.go('look')")
     pg.wait_for_function("document.getElementById('look-readout').innerText.includes('%')", timeout=60000)
@@ -87,14 +102,23 @@ with sync_playwright() as p:
     photos = os.environ.get('DDS_PHOTOS')
     if photos:
         expect = {'stage': 'showtime', 'pizza': 'galley', 'coral': 'explorer', 'ship': 'crew', 'sunscreen': 'pool'}
+        # photos named lifering* should restock rings instead of starting an encounter
         tmp = tempfile.mkdtemp()
         for f in sorted(glob.glob(os.path.join(photos, '*.jpg'))):
             name = pathlib.Path(f).stem
             want = next((v for k, v in expect.items() if k in name.lower()), None)
             fake = os.path.join(tmp, name + '.mjpeg'); shutil.copy(f, fake)    # a single JPEG works as an MJPEG "camera"
             b, pg = page(p, fake)
-            pg.evaluate("Store.get().recog = null; Store.save(); App.go('look')")
+            pg.evaluate("Store.get().recog = null; Store.get().rings.life = 1; Store.get().lifeScanAt = 0; Store.save(); App.go('look')")
             got = None
+            if 'lifering' in name.lower():
+                for _ in range(60):
+                    pg.wait_for_timeout(250)
+                    if pg.evaluate("Store.get().rings.life") > 1: got = 'refill'; break
+                print(f'  {name}: expected refill → got {got} | ring score {pg.evaluate("Math.round(Recognize.ringProb ? 0 : 0)")}')
+                pg.screenshot(path=str(OUT / f'recog-photo-{name}.png'))
+                check(got == 'refill', f'photo "{name}" → +10 Life Rings')
+                b.close(); continue
             for _ in range(60):
                 pg.wait_for_timeout(250)
                 if pg.evaluate("document.body.dataset.screen") == 'catch':

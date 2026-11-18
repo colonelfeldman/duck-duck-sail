@@ -1,0 +1,4 @@
+-- Applied 2026-11-18 as migration dds_accounts_profiles_creatures (see Supabase migration history for the exact SQL).
+-- dds_profiles (account_id → auth.users, display_name 1–20 chars, is_kid; max 8 per account via trigger),
+-- dds_saves (profile_id pk, state jsonb, rev), dds_creatures (id uuid from the phone, profile_id, data jsonb, released_at, trade_lock_until).
+-- RLS: authenticated users only, own account's rows only; anon has no access. Verified 2026-11-18 by impersonating two accounts in a rolled-back transaction.

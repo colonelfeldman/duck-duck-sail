@@ -63,8 +63,8 @@ const Recognize = (() => {
       classifier = await vision.ImageClassifier.createFromOptions(fileset, {
         baseOptions: { modelAssetPath: new URL('vendor/models/efficientnet_lite0.tflite', location.href).href, delegate: 'CPU' },
         runningMode: 'VIDEO',
-        maxResults: 10,
-        scoreThreshold: 0.02,
+        maxResults: -1,          // all 1000 scores: the life-ring recognizer reads every one
+        scoreThreshold: 0,
       });
       return classifier;
     })();
@@ -72,8 +72,27 @@ const Recognize = (() => {
     return loading;
   }
 
+  // Life-ring recognizer (trained, js/lifering-model.js): logistic regression on all 1000 log-scores.
+  const LIFERING = { id: 'lifering', name: 'Life ring', hint: 'That looks like a life ring!', refill: true };
+  function ringProb(results) {
+    if (typeof LIFERING_MODEL === 'undefined' || !results.length || results[0].index === undefined) return 0;
+    const M = LIFERING_MODEL, v = new Float32Array(1000);
+    for (const c of results) if (c.index >= 0 && c.index < 1000) v[c.index] = c.score;
+    let z = M.b;
+    for (let i = 0; i < 1000; i++) z += M.w[i] * Math.log(v[i] + M.eps);
+    return 1 / (1 + Math.exp(-z));
+  }
+  const ringThreshold = () => (typeof LIFERING_MODEL === 'undefined' ? 2 : LIFERING_MODEL.threshold);
+  const ringCooldownLeft = () => Math.max(0, (Store.get().lifeScanAt || 0) + CONFIG.lifeRings.scanCooldownMs - Date.now());
+  let lastRing = 0;
+
   // Score each category for one frame: the best score among its labels.
   function scoreFrame(results) {
+    // a real life ring takes priority (it restocks rings instead of starting an encounter)
+    const rp = ringProb(results);
+    lastRing = rp;
+    if (rp >= ringThreshold()) return { cat: LIFERING, score: rp, label: 'life ring' };
+    if (capLeft() <= 0) return null;   // no more hidden ducks today; life rings still count
     const byLabel = {};
     for (const c of results) byLabel[c.categoryName.toLowerCase()] = Math.max(byLabel[c.categoryName.toLowerCase()] || 0, c.score);
     let best = null;
@@ -102,7 +121,8 @@ const Recognize = (() => {
       track = null;
       return { status: 'looking' };
     }
-    if (cooldownLeft(best.cat.id) > 0) { track = null; return { status: 'cooldown', cat: best.cat, left: cooldownLeft(best.cat.id) }; }
+    const cd = best.cat.refill ? ringCooldownLeft() : cooldownLeft(best.cat.id);
+    if (cd > 0) { track = null; return { status: 'cooldown', cat: best.cat, left: cd }; }
     if (!track || track.cat.id !== best.cat.id) track = { cat: best.cat, since: now, scores: [], misses: 0, label: best.label };
     track.misses = 0;
     track.scores.push(best.score);
@@ -122,20 +142,47 @@ const Recognize = (() => {
     const st = $('look-status'), bar = $('look-bar');
     if (r.status === 'looking') { st.textContent = 'Point your camera around… ducks hide near things they love.'; bar.style.width = '0%'; }
     if (r.status === 'holding' && r.track) { st.textContent = r.track.cat.hint + ' Hold steady…'; bar.style.width = Math.round((r.progress || 0) * 100) + '%'; }
-    if (r.status === 'cooldown') { st.textContent = `${r.cat.name}: a duck was found here recently. Try again in ${fmt(r.left)}.`; bar.style.width = '0%'; }
+    if (r.status === 'cooldown') {
+      st.textContent = r.cat.refill ? `Life ring spotted — rings restock again in ${fmt(r.left)}.` : `${r.cat.name}: a duck was found here recently. Try again in ${fmt(r.left)}.`;
+      bar.style.width = '0%';
+    }
+    if (r.status === 'looking' && capLeft() <= 0) st.textContent = 'No more hidden ducks today — but you can still spot life rings to restock.';
     if (RC().showReadout) {
       $('look-readout').hidden = false;
-      $('look-readout').innerHTML = lastResults.slice(0, 4).map((c) => {
+      $('look-readout').innerHTML = `<div class="${lastRing >= ringThreshold() ? 'hit' : ''}"><span>🛟 life ring (trained)</span><b>${Math.round(lastRing * 100)}%</b><i>Rings</i></div>` +
+        lastResults.slice(0, 4).map((c) => {
         const cat = RECOGNIZE_CATEGORIES.find((k) => k.labels.includes(c.categoryName.toLowerCase()));
         return `<div class="${cat ? 'hit' : ''}"><span>${escHtml(c.categoryName)}</span><b>${Math.round(c.score * 100)}%</b>${cat ? `<i>${cat.name}</i>` : ''}</div>`;
       }).join('') || '<div><span>(nothing yet)</span></div>';
     }
-    $('look-limit').textContent = `Hidden ducks found today: ${state().count} / ${RC().dailyCap}`;
+    $('look-limit').textContent = `Hidden ducks found today: ${state().count} / ${RC().dailyCap} · 🛟 Life Rings ${Store.get().rings.life}/${Store.bagCap()}`;
   }
   const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   function fmt(ms) { const s = Math.ceil(ms / 1000), m = Math.floor(s / 60); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}:${String(s % 60).padStart(2, '0')}`; }
 
+  // A real life ring: restock Life Rings and keep looking (no encounter).
+  function ringFound() {
+    const S = Store.get();
+    const got = Store.addLifeRings(CONFIG.lifeRings.scanRefill);
+    const st = $('look-status');
+    if (got) {
+      S.lifeScanAt = Date.now();
+      const rs = S.recogStats || (S.recogStats = { found: 0, caught: 0, byCat: {}, byForm: {}, labels: {} });
+      rs.rings = (rs.rings || 0) + 1;
+      Store.save();
+      if (navigator.vibrate) try { navigator.vibrate([30, 30, 30]); } catch (e) {}
+      st.textContent = `🛟 +${got} Life Rings! (${S.rings.life}/${Store.bagCap()})`;
+      App.toast(`🛟 +${got} Life Rings!`);
+    } else {
+      st.textContent = 'Life ring spotted — but your ring bag is full.';
+    }
+    $('look-bar').style.width = '0%';
+    holdMsgUntil = performance.now() + 2500;
+  }
+  let holdMsgUntil = 0;
+
   function found(r) {
+    if (r.cat.refill) return ringFound();
     stop();
     const st = state();
     st.count += 1;
@@ -167,7 +214,6 @@ const Recognize = (() => {
     $('look-readout').hidden = !RC().showReadout;
     $('look-bar').style.width = '0%';
     $('look-limit').textContent = `Hidden ducks found today: ${state().count} / ${RC().dailyCap}`;
-    if (capLeft() <= 0) { st.textContent = "You've found all the hidden ducks for today. More tomorrow!"; return; }
     st.textContent = 'Starting camera…';
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { st.textContent = 'This browser can’t use the camera.'; return; }
     try {
@@ -203,6 +249,7 @@ const Recognize = (() => {
     } catch (e) { return; }
     const r = step(results, performance.now());
     if (r.status === 'found') return found(r);
+    if (performance.now() < holdMsgUntil && r.status === 'looking') return;
     render(r);
   }
 
@@ -214,5 +261,5 @@ const Recognize = (() => {
     const v = $('look-video'); if (v) v.srcObject = null;
   }
 
-  return { start, stop, step, load, state, cooldownLeft, capLeft, formFor, _found: found, _render: render };
+  return { start, stop, step, load, state, cooldownLeft, capLeft, formFor, ringProb, ringCooldownLeft, _found: found, _render: render };
 })();

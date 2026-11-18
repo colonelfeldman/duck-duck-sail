@@ -93,7 +93,7 @@ const App = (() => {
     $('d-premium').textContent = S.rings.premium;
     $('d-golden').textContent = S.rings.golden;
     tickDeck();
-    if (!deckTick) deckTick = setInterval(() => { if (current === 'deck') tickDeck(); }, 1000);
+    if (!deckTick) deckTick = setInterval(() => { if (current === 'deck' && Store.get()) tickDeck(); }, 1000);
   }
   function tickDeck() {
     const v = activeVenue();
@@ -556,8 +556,8 @@ const App = (() => {
 
   // ================= init =================
   function init() {
-    Store.load();
     Catch.init();
+    Account.init();
     Scanner.init();
     $('ver').textContent = 'v' + VERSION;
     if (TESTING) document.body.classList.add('testing');
@@ -615,18 +615,31 @@ const App = (() => {
     $('howto-starter').textContent = `${CONFIG.starter.shells} Shells and ${CONFIG.starter.treats} Duck Treats`;
     $('howto-catch').textContent = `+${CONFIG.catchReward.shells} Shells, +${CONFIG.catchReward.treats} Duck Treats`;
 
-    go('deck');
-    if (!Store.get().seen.safety) openOverlay('safety');
+    Account.boot();      // sign in → who's playing → enterGame()
 
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
     checkVersion();
     setInterval(checkVersion, 5 * 60 * 1000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkVersion(); if (current === 'deck') tickDeck(); } });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkVersion(); if (current === 'deck' && Store.get()) tickDeck(); } });
   }
 
-  return { init, go, screen, levelUpBanner, toast, openSheet, closeSheet, handleSignPayload, encounterWait, startTimedEncounter };
+  // A profile's save is loaded: start playing.
+  function enterGame() {
+    go('deck');
+    if (!Store.get().seen.safety) openOverlay('safety');
+  }
+  // Sync pulled new data: redraw whatever is showing.
+  function refresh() {
+    if (!Store.get()) return;
+    if (current === 'deck') renderDeck();
+    if (current === 'crew') renderCrew();
+    if (current === 'passport') renderPassport();
+    if (current === 'detail') renderDetail();
+  }
+
+  return { init, go, screen, enterGame, refresh, levelUpBanner, toast, openSheet, closeSheet, handleSignPayload, encounterWait, startTimedEncounter };
 })();
 
 // ================= QR scanner (on-device, jsQR; works on Safari) =================

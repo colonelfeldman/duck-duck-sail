@@ -6,6 +6,7 @@ A cruise-themed creature-collecting game: catch ducks with a flick-thrown life r
 - **Testing mode:** ON by default while `PLAYTEST = true` in `js/config.js` (set it false before a wider release). `?test=1` / `?test=0` force it per device. That gives encounters every 2 minutes, 60-second sign cooldowns, simulate-scan buttons and a TESTING badge. It's remembered on that device; `?test=0` turns it off.
 - **Look-around mode (on for everyone):** with the camera on, the duck holds a direction in the room (from the phone's gyroscope) and you turn the phone to find it. An arrow says "Turn left/right" when it's off screen. 🧭 on the catch screen turns it on or off per device; iPhone asks once for motion access. Without motion data it falls back to the plain overlay. Settings are in `CONFIG.lookAround`.
 - **Look for ducks (camera recognition):** on-device image classifier (Google MediaPipe, EfficientNet-Lite0, ImageNet labels) spots things around you and the matching duck line appears: stage/curtains → Showtime, food → Galley, sunscreen/towels → Pool, sea/shore → Explorer, sights → Tourist, ships → Crew (`RECOGNIZE_CATEGORIES`). Match strength sets the form (partial/strong/excellent → Form 1/2/3). Skips the encounter timer but has per-kind cooldowns and a daily cap (`CONFIG.recognize`). Swimwear and places of worship are deliberately excluded. First use downloads ~20 MB (engine + model), then it's cached for offline use.
+- **Accounts:** real accounts only (no guests) — the same login as All Ashore (shared Supabase project). An account holds up to 8 player profiles; kids play on profiles a parent adds (display name only, no email). Local-first: the phone keeps a copy so play works offline; `js/account.js` (`Sync`) uploads changes and downloads the profile on a new device. Tables: `dds_profiles`, `dds_saves`, `dds_creatures` (RLS: own account only). The pre-accounts collection on a phone can be moved into a profile once. Google sign-in is off until the game's address is added in Supabase → Auth → Redirect URLs (`CONFIG.auth.google`).
 - **Spec/handoff:** kept locally in `docs/` (not published)
 
 ## Files
@@ -24,6 +25,7 @@ A cruise-themed creature-collecting game: catch ducks with a flick-thrown life r
 | `supabase/` | SQL for the game's tables in the All Ashore Supabase project |
 | `tests/smoke.py` | Phone-size browser walkthrough of every QA gate it can automate |
 | `tests/recognize.py` | Look for ducks: logic with fake model output, real model loading, and (with `DDS_PHOTOS=<folder>`) real photos used as the camera |
+| `tests/accounts.py` + `tests/mock_supabase.py` | Sign in, profiles, kid profiles, sync across two phones, offline, legacy import — against an in-memory stand-in for Supabase |
 | `tests/look.py` | Look-around mode with a fake camera and simulated phone turning |
 | `tools/` | `bump-version.sh`, `make_icons.py` |
 

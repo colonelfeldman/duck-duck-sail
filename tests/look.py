@@ -1,6 +1,8 @@
 # Look-around (gyroscope) mode with a fake camera and simulated phone turning.
 #   python3 -m http.server 8765 --bind 127.0.0.1   then   python3 tests/look.py
 import os, pathlib, sys, math
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from mock_supabase import MockSupabase, login
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get('DDS_BASE', 'http://127.0.0.1:8765/index.html')
@@ -17,10 +19,12 @@ ORIENT_JS = """(o) => { window.__o = o; if (!window.__oi) window.__oi = setInter
 with sync_playwright() as p:
     b = p.chromium.launch(args=['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'])
     ctx = b.new_context(viewport={'width': 412, 'height': 860}, device_scale_factor=2, is_mobile=True, has_touch=True)
+    MockSupabase().install(ctx)
     ctx.grant_permissions(['camera'], origin=BASE.split('/index')[0].rstrip('/') if 'index' in BASE else BASE.rstrip('/'))
     pg = ctx.new_page()
     pg.on('pageerror', lambda e: errors.append(str(e)))
-    pg.goto(BASE + ('&' if '?' in BASE else '?') + 'test=1'); pg.wait_for_timeout(400)
+    pg.goto(BASE + ('&' if '?' in BASE else '?') + 'test=1')
+    login(pg); pg.wait_for_timeout(300)
     pg.click('#safety-ok'); pg.click('#howto .x')
     pg.evaluate(ORIENT_JS, {'a': 0, 'b': 90, 'g': 0})       # phone upright, facing "north"
 
@@ -113,7 +117,7 @@ with sync_playwright() as p:
     # Normal link (no ?test=1): look-around is offered too
     pg.evaluate("localStorage.removeItem('dds_look')")
     pg.evaluate(ORIENT_JS, {'a': 0, 'b': 90, 'g': 0})
-    pg.goto(BASE + ('&' if '?' in BASE else '?') + 'test=0'); pg.wait_for_timeout(400)
+    pg.goto(BASE + ('&' if '?' in BASE else '?') + 'test=0'); pg.wait_for_selector('#scr-deck:not([hidden])', timeout=15000)
     pg.evaluate(ORIENT_JS, {'a': 0, 'b': 90, 'g': 0})
     pg.evaluate("Store.get().nextEncounterAt = 0; Store.get().encounterLog = []; App.startTimedEncounter()"); pg.wait_for_timeout(1500)
     check(pg.is_visible('#c-look') and E('E.look.want') and E('E.look.anchored'), 'normal link: 🧭 shown and look-around active')

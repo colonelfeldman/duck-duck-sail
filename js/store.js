@@ -1,11 +1,14 @@
 // Save state + game rules that change it. localStorage is guarded: a storage failure never breaks play.
 // SAVE DISCIPLINE: bump SAVE_VERSION when the shape changes and add a migration step. Never wipe a crew.
-const SAVE_KEY = 'dds_save';
+const SAVE_KEY = 'dds_save';          // pre-accounts save (one per phone); now only read for the one-time import
+const profileKey = (id) => 'dds_save:' + id;
 const SAVE_VERSION = 3;
 
 const Store = (() => {
   let S = null;
   let storageOk = true;
+  let key = SAVE_KEY;
+  let saveHook = null;
 
   function fresh() {
     return {
@@ -30,6 +33,7 @@ const Store = (() => {
       signCooldowns: {},     // signId: timestamp of last scan
       seen: { safety: false, howto: false },
       stats: { catches: 0, throws: 0 },
+      releasedIds: [],       // released ducks not yet synced to the account
     };
   }
 
@@ -84,27 +88,47 @@ const Store = (() => {
     return s;
   }
 
-  function load() {
+  // load(profileId): each account profile has its own save on the phone (and in the cloud via Sync).
+  function load(profileId) {
+    key = profileId ? profileKey(profileId) : SAVE_KEY;
     let raw = null;
-    try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { storageOk = false; }
+    try { raw = localStorage.getItem(key); } catch (e) { storageOk = false; }
     let parsed = null;
     if (raw) { try { parsed = JSON.parse(raw); } catch (e) { parsed = null; } }
     if (parsed) {
       const before = typeof parsed.v === 'number' ? parsed.v : 0;
       S = migrate(parsed);
       if (before !== S.v) {
-        try { localStorage.setItem(SAVE_KEY + '_backup_v' + before, raw); } catch (e) {}
+        try { localStorage.setItem(key + '_backup_v' + before, raw); } catch (e) {}
       }
     } else {
       S = fresh();
     }
-    save();
+    save(true);
     return S;
   }
+  // Sync: replace the whole save with the account's copy (already includes crew).
+  function replace(state) { S = migrate(JSON.parse(JSON.stringify(state))); save(true); return S; }
+  // The pre-accounts save on this phone, if any.
+  function legacySave() {
+    try { const raw = localStorage.getItem(SAVE_KEY); return raw ? migrate(JSON.parse(raw)) : null; } catch (e) { return null; }
+  }
+  // Move the pre-accounts collection into the current profile (once). The old save is kept as a backup.
+  function importLegacy() {
+    const L = legacySave(); if (!L) return false;
+    const keepSeen = S.seen;
+    S = L; S.seen = { safety: !!(L.seen && L.seen.safety) || !!(keepSeen && keepSeen.safety), howto: !!(L.seen && L.seen.howto) || !!(keepSeen && keepSeen.howto) };
+    try { localStorage.setItem(SAVE_KEY + '_imported', localStorage.getItem(SAVE_KEY)); localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    save();
+    return true;
+  }
+  function onSave(fn) { saveHook = fn; }
 
-  function save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); storageOk = true; }
+  // save(silent): silent = don't trigger a cloud sync (used by Sync itself and on load).
+  function save(silent) {
+    try { localStorage.setItem(key, JSON.stringify(S)); storageOk = true; }
     catch (e) { storageOk = false; }
+    if (!silent && saveHook) saveHook();
   }
 
   const get = () => S;
@@ -289,12 +313,13 @@ const Store = (() => {
     const i = S.crew.findIndex((x) => x.id === c.id);
     if (i < 0) return false;
     S.crew.splice(i, 1);
+    (S.releasedIds = S.releasedIds || []).push(c.id);
     S.treats.duck = (S.treats.duck || 0) + CONFIG.releaseTreats;
     save();
     return true;
   }
 
-  return { load, save, get, fresh, migrate, rollWild, recordCatch, addXp, sailPower, formName, rarity,
+  return { load, save, get, fresh, migrate, replace, legacySave, importLegacy, onSave, rollWild, recordCatch, addXp, sailPower, formName, rarity,
            displayName, lineName, heldKey, addLifeRings, bagCap, canTopUp, claimTopUp, totalRings,
            canPowerUp, powerUp, canPromote, promote, release, pickWeighted, storageOk: () => storageOk };
 })();

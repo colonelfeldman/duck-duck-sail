@@ -1,6 +1,6 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.4.2';
+const VERSION = '1.4.3';
 
 // Testing mode = 2 min between encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
 // PLAYTEST: while only a couple of people are testing, the normal link IS the testing build.
@@ -143,6 +143,7 @@ const CONFIG = {
     cooldownMs: TESTING ? 5 * MIN : 60 * MIN,  // per kind of thing (stage, food, …)
     dailyCap: TESTING ? 30 : 8,                // recognized ducks per day, all kinds together
     showReadout: TESTING,      // show what the phone thinks it sees (for tuning on the ship)
+    spawnHere: false,          // false = after a match the duck hides nearby and you look around for it (Jeff 2026-11-18)
   },
 
   // Flee: chance after each failure = base × failure points (miss = 0.5 point, slip-off = 1)

@@ -199,7 +199,7 @@ const Recognize = (() => {
     Catch.start({
       forceLine: r.cat.line,
       forceForm: r.form,
-      spawnHere: true,
+      spawnHere: RC().spawnHere,
       provenance: `Found ${r.cat.where} (camera saw "${r.label}", ${tierName(r.form).toLowerCase()})`,
       label: `🔍 ${tierName(r.form)} · ${r.cat.name}`,
     });

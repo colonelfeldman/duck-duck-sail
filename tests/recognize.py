@@ -56,7 +56,7 @@ with sync_playwright() as p:
     w = pg.evaluate("(() => { const E = Catch.debug(); return E && {line: E.wild.line, form: E.wild.form, prov: E.provenance, info: document.getElementById('c-info').innerText}; })()")
     check(w and w['line'] == 'showtime' and w['form'] == 3, f'stage match (excellent) → Showtime Form 3 (Cruise Director): {w}')
     check(w and w['prov'] == 'Found by the stage (camera saw "theater curtain", excellent match)', f"provenance records where + what + match: {w and w['prov']}")
-    check(pg.evaluate("Catch.debug().look.spawnOffset") is False, 'recognized duck appears where you are pointing (no hiding offset)')
+    check(pg.evaluate("Catch.debug().look.spawnOffset") is True, 'recognized duck hides nearby — you look around for it')
     check(pg.evaluate("Store.get().nextEncounterAt > Date.now() + 900000"), 'recognized duck skipped the encounter timer (timer untouched)')
     pg.screenshot(path=str(OUT / 'recog-01-cruise-director.png'))
     pg.evaluate("""Store.recordCatch(Catch.debug().wild, {quality:'Great', curveball:false, provenance: Catch.debug().provenance})""")

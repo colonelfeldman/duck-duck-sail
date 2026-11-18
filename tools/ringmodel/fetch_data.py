@@ -13,7 +13,7 @@ CACHE_DIR = os.path.join(OUT, '_api_cache')
 _last = [0.0]
 def api(params):
     # Polite: one request per second, cache every answer, back off hard on 429 (Wikimedia rate limits).
-    params = {**params, 'format': 'json', 'maxlag': 5}
+    params = {**params, 'format': 'json'}
     url = API + '?' + urllib.parse.urlencode(params)
     os.makedirs(CACHE_DIR, exist_ok=True)
     cpath = os.path.join(CACHE_DIR, hashlib.md5(url.encode()).hexdigest() + '.json')
@@ -30,6 +30,7 @@ def api(params):
             if 'error' not in d:
                 json.dump(d, open(cpath, 'w'))
                 return d
+            print('  api error:', d['error'].get('code'), str(d['error'].get('info'))[:80], flush=True)
         pause = 60 * (attempt + 1) if code == '429' else 5
         print(f'  api {code}, waiting {pause}s', flush=True)
         time.sleep(pause)
@@ -69,8 +70,8 @@ def search_files(q, limit):
 def thumbs(titles):
     out = {}
     titles = list(titles)
-    for i in range(0, len(titles), 40):
-        d = api({'action': 'query', 'titles': '|'.join(titles[i:i + 40]), 'prop': 'imageinfo', 'iiprop': 'url|mime', 'iiurlwidth': THUMB_W})
+    for i in range(0, len(titles), 20):
+        d = api({'action': 'query', 'titles': '|'.join(titles[i:i + 20]), 'prop': 'imageinfo', 'iiprop': 'url|mime', 'iiurlwidth': THUMB_W})
         for p in d.get('query', {}).get('pages', {}).values():
             ii = (p.get('imageinfo') or [{}])[0]
             if ii.get('mime') in ('image/jpeg', 'image/png') and ii.get('thumburl'):

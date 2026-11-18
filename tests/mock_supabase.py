@@ -60,6 +60,13 @@ class MockSupabase:
     # ---------- routing ----------
     def install(self, ctx):
         ctx.route(re.compile(r'^' + re.escape(SUPA) + r'/(auth|rest)/v1/.*'), self._handle)
+        ctx.route('https://allashore.app/api/user/sync', self._aa_sync)
+        self.aa_syncs = []
+
+    def _aa_sync(self, route, request):
+        if request.method == 'OPTIONS': return self._json(route, 200, None)
+        self.aa_syncs.append({'auth': request.headers.get('authorization', ''), 'body': json.loads(request.post_data or '{}')})
+        return self._json(route, 200, {'ok': True})
 
     def _json(self, route, status, body, headers=None):
         route.fulfill(status=status, body=json.dumps(body) if body is not None else '', headers={

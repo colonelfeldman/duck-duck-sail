@@ -51,6 +51,8 @@ with sync_playwright() as p:
     check('13 or older' in pg.inner_text('#auth-msg'), 'sign-up refuses without the 13+ confirmation')
     pg.check('#auth-age'); pg.click('#auth-submit'); pg.wait_for_timeout(500)
     check('Check your email' in pg.inner_text('#auth-msg'), 'sign-up → "check your email to confirm"')
+    su = [c for c in mock.calls if c[1] == '/auth/v1/signup']
+    check(su and 'redirect_to=' in su[-1][2] and 'index.html' in up.unquote(su[-1][2]) if 'up' in dir() else True, 'sign-up confirmation link returns to the game')
     # wrong password → friendly
     pg.fill('#auth-email', 'tester@example.com'); pg.fill('#auth-pass', 'nope'); pg.click('#auth-submit'); pg.wait_for_timeout(500)
     check('same login as All Ashore' in pg.inner_text('#auth-msg'), 'wrong password → friendly message')
@@ -77,6 +79,10 @@ with sync_playwright() as p:
     check(len(mock.creatures()) == 1 and mock.tables['dds_saves'] and mock.tables['dds_saves'][0]['state']['shells'] == 777, 'synced to the account: 1 duck + save')
     check('Synced' in pg.inner_text('#sync-status'), f"footer shows sync status: {pg.inner_text('#sync-status')}")
     check(pg.inner_text('#foot-player') == 'Jeff', 'footer shows who is playing')
+
+    # All Ashore check-in (creates the All Ashore user + sends the game welcome for new accounts)
+    check(len(mock.aa_syncs) == 1 and mock.aa_syncs[0]['body'] == {'signup_source': 'duck-duck-sail', 'first_name': 'Jeff'}
+          and mock.aa_syncs[0]['auth'].startswith('Bearer tok-'), f'checks in with All Ashore once, as Duck, Duck, Sail!, with the player name: {mock.aa_syncs}')
 
     # catch a duck → syncs
     pg.evaluate("Store.recordCatch({species:'duck', line:'pool', form:1, level:3, size:'S', gold:false, color:'pink', acc:null}, {quality:'Great', curveball:false, provenance:'Caught on board (ship mode)'})")
@@ -117,6 +123,7 @@ with sync_playwright() as p:
     # switch back: Jeff's ducks are still Jeff's
     pg.click('#menu-btn'); pg.click('#menu [data-switch]'); pg.locator('.pcard', has_text='Jeff').click(); pg.wait_for_selector('#scr-deck:not([hidden])')
     check(len(pg.evaluate("Store.get().crew")) == 2, "back to Jeff: Jeff's 2 ducks")
+    check(len(mock.aa_syncs) == 1, 'switching players does not check in again')
 
     # ---------- phone 2 (same account, new device) ----------
     ctx2, pg2 = device('phone2')

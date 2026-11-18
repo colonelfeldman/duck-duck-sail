@@ -77,6 +77,25 @@ const Account = (() => {
     App.enterGame();
     Sync.start(p.id);
     offerLegacyImport();
+    allAshoreCheckIn();
+  }
+
+  // Tell All Ashore about this account once per phone: creates its All Ashore user record and, for a brand-new
+  // account, sends the Duck, Duck, Sail! welcome email (All Ashore sends each account only one welcome, ever).
+  async function allAshoreCheckIn() {
+    const k = 'dds_aa_sync:' + uid();
+    if (LS.get(k) || !online() || !session) return;
+    const holder = profiles.find((p) => !p.is_kid);
+    const meta = (session.user && session.user.user_metadata) || {};
+    const first = (meta.given_name || (meta.full_name || meta.name || '').split(' ')[0] || (holder && holder.display_name) || '').trim().slice(0, 40);
+    try {
+      const res = await fetch(CONFIG.allAshoreApi + '/api/user/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ signup_source: 'duck-duck-sail', first_name: first || null }),
+      });
+      if (res.ok) LS.set(k, Date.now());
+    } catch (e) { /* try again next time */ }
   }
 
   // The collection from before accounts existed (this phone only) can move into a profile, once.
@@ -130,7 +149,8 @@ const Account = (() => {
       } else if (mode === 'signup') {
         if (!$('auth-age').checked) throw new Error("Please confirm you're 13 or older. Kids play on profiles you add after signing up.");
         if (pass.length < 8) throw new Error('Use at least 8 characters for your password.');
-        const { data, error } = await client().auth.signUp({ email, password: pass });
+        // the confirmation link comes back to the game (not All Ashore), so the game's check-in sends the game welcome
+        const { data, error } = await client().auth.signUp({ email, password: pass, options: { emailRedirectTo: location.origin + location.pathname } });
         if (error) throw error;
         if (data.session) { session = data.session; await loadProfiles(); return choose(); }
         mode = 'signin';

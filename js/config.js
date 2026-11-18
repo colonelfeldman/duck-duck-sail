@@ -158,6 +158,9 @@ const CONFIG = {
   // Sign-in (shared with All Ashore). Google works because the game's address is in Supabase → Auth → Redirect URLs
   // (added by Jeff 2026-11-18: https://colonelfeldman.github.io/duck-duck-sail/**). A new address needs adding there too.
   auth: { google: true },
+  // All Ashore's server: after sign-in the game checks in once (POST /api/user/sync, signup_source 'duck-duck-sail'),
+  // which creates the All Ashore user record and sends the one-time Duck, Duck, Sail! welcome email for new accounts.
+  allAshoreApi: 'https://allashore.app',
 
   supabase: {
     url: 'https://fubiwzfddoboajjkvfph.supabase.co',

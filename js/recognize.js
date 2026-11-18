@@ -177,6 +177,7 @@ const Recognize = (() => {
       st.textContent = 'Life ring spotted — but your ring bag is full.';
     }
     $('look-bar').style.width = '0%';
+    $('look-limit').textContent = `Hidden ducks found today: ${state().count} / ${RC().dailyCap} · 🛟 Life Rings ${S.rings.life}/${Store.bagCap()}`;
     holdMsgUntil = performance.now() + 2500;
   }
   let holdMsgUntil = 0;

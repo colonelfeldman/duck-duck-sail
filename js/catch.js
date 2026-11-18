@@ -225,7 +225,7 @@ const Catch = (() => {
     const S = Store.get();
     E = {
       timers: new Set(),
-      wild: Store.rollWild(opts.weights),
+      wild: Store.rollWild(opts.weights, { lines: opts.lines, port: opts.port }),
       provenance: opts.provenance || 'Caught on board (ship mode)',
       xpMult: opts.xpMult || 1,
       label: opts.label || '',
@@ -259,7 +259,7 @@ const Catch = (() => {
     E.duck.y = E.homeY;
     E.duck.x = E.W / 2;
 
-    el.art.innerHTML = ART.duckSVG(E.wild.form, E.wild.gold);
+    el.art.innerHTML = ART.duckSVG(E.wild);
     el.dk.className = 'dk appear';
     el.duckwrap.style.visibility = E.look.pending ? 'hidden' : '';
     el['c-find'].hidden = true;
@@ -274,8 +274,7 @@ const Catch = (() => {
     el['c-bottom'].classList.remove('busy');    // a previous encounter may have been left mid-throw
     el.rope.style.opacity = 0;
     el['c-cue'].classList.remove('on');
-    const f = FAMILIES[0].forms[E.wild.form];
-    el['c-info'].innerHTML = `<b>${E.wild.gold ? '✨ Gold ' : ''}${f.name}</b> <span>Lv ${E.wild.level} · ${f.rarity}</span>` +
+    el['c-info'].innerHTML = `<b>${E.wild.gold ? '✨ ' : ''}${Store.displayName(E.wild)}</b> <span>Lv ${E.wild.level} · ${Store.rarity(E.wild)}</span>` +
       (E.label ? `<small>${E.label}</small>` : '');
     setMsg('');
     hint(E.look.want ? 'Look around for the duck, then flick the ring at it.' : 'Flick the ring up at the duck. Circle it first to add spin.');
@@ -712,7 +711,7 @@ const Catch = (() => {
     el.dk.className = 'dk flee';
     setMsg('The duck paddled away!', 'bad');
     later(() => {
-      showPanel(`<h2>It got away!</h2><p>That ${Store.formName(E.wild)} swam off. Another one will turn up soon.</p>
+      showPanel(`<h2>It got away!</h2><p>That ${Store.displayName(E.wild)} swam off. Another one will turn up soon.</p>
         <div class="row"><button class="btn primary" data-act="deck">Back to Deck</button></div>`);
     }, 900);
     E.autoTimer = later(() => exit('deck'), CONFIG.celebrateAutoMs);
@@ -734,7 +733,8 @@ const Catch = (() => {
     const c = res.creature;
     later(() => {
       showPanel(`
-        <h2>${c.gold ? '✨ Gold ' : ''}${Store.formName(c)} rescued!</h2>
+        <h2>${c.gold ? '✨ ' : ''}${Store.displayName(c)} rescued!</h2>
+        ${c.acc ? `<p class="quality">Wearing: ${ACCESSORY_NAMES[c.acc]}</p>` : ''}
         <p class="stats">Lv ${c.level} · Sail Power <b>${Store.sailPower(c)}</b> · Size ${c.size} · ${Store.rarity(c)}</p>
         <p class="quality">${E.quality} landing${E.curveball ? ' · Curveball' : ''}</p>
         <ul class="rewards">

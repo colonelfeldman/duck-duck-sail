@@ -185,8 +185,8 @@ body[data-screen="catch"] #c-bottom:not([hidden]) ~ #flyring { display: block; }
 .dk.struggle .wing { animation: flap .14s linear infinite; transform-box: fill-box; transform-origin: 80% 30%; }
 .dk.happy { animation: hop .6s ease-in-out 2; transform-origin: 50% 100%; }
 .dk.flee { transition: transform 1s ease-in, opacity 1s; transform: translateX(160%) rotate(10deg); opacity: 0; }
-.duck.form3 .spark { animation: twinkle 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-.duck.form3 .s2 { animation-delay: .4s; } .duck.form3 .s3 { animation-delay: .8s; } .duck.form3 .s4 { animation-delay: 1.2s; }
+.duck.rare .spark { animation: twinkle 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.duck.rare .s2 { animation-delay: .4s; } .duck.rare .s3 { animation-delay: .8s; } .duck.rare .s4 { animation-delay: 1.2s; }
 .duck.gold { filter: drop-shadow(0 0 6px rgba(255,214,90,.9)); }
 @keyframes appear { 0% { transform: scale(.2) translateY(30%); opacity: 0; } 70% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
 @keyframes squash { 0% { transform: scale(1,1); } 30% { transform: scale(1.18,.82); } 60% { transform: scale(.92,1.1); } 100% { transform: scale(1,1); } }
@@ -263,6 +263,11 @@ body[data-screen="catch"] #c-bottom:not([hidden]) ~ #flyring { display: block; }
 .slot small { font-size: .7rem; font-weight: 700; }
 .slot.unseen svg { filter: brightness(0) opacity(.18); }
 .slot .goldstar { position: absolute; top: 4px; right: 6px; font-style: normal; }
+.fam h3 small { font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: #EEF3F8; color: #9aa7b8; border-radius: 99px; padding: 4px 10px; font-weight: 800; font-size: .8rem; }
+.chip.got { background: #FFF1B8; color: #6f5100; }
+.detail .variant { margin: -6px 0 10px; color: var(--sea2); font-weight: 700; }
 .fam.locked { opacity: .55; } .fam.locked .slot span { font-size: 1.6rem; color: #9aa7b8; font-weight: 900; }
 .stamps-h { margin-top: 18px; }
 .stamps { display: flex; flex-wrap: wrap; gap: 12px; }

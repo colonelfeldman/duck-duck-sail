@@ -43,6 +43,8 @@ const App = (() => {
     if (!sign) return { provenance: 'Caught on board (ship mode)' };
     return {
       weights: sign.weights || CONFIG.spawnWeights,
+      lines: sign.lines || null,
+      port: sign.port || null,          // port day: that port's own duck can appear
       xpMult: sign.xpMult || 1,
       provenance: sign.port ? `Caught in ${sign.port} (port sign)` : `Caught at ${sign.name} (sign scan)`,
       label: sign.port ? `📍 ${sign.port}` : `📍 ${sign.name}`,
@@ -117,8 +119,8 @@ const App = (() => {
     $('crew-count').textContent = `${S.crew.length} / ${CONFIG.crewCap}`;
     $('crew-grid').innerHTML = list.length ? list.map((c) => `
       <button class="crew-card ${c.gold ? 'gold' : ''}" data-id="${c.id}">
-        <div class="art">${ART.duckSVG(c.form, c.gold)}</div>
-        <div class="nm">${c.gold ? '✨ ' : ''}${Store.formName(c)}</div>
+        <div class="art">${ART.duckSVG(c)}</div>
+        <div class="nm">${c.gold ? '✨ ' : ''}${esc(Store.displayName(c))}</div>
         <div class="sub">Lv ${c.level} · SP ${Store.sailPower(c)}</div>
       </button>`).join('')
       : `<p class="empty">No crew yet. Head back to the Deck and catch your first duck!</p>`;
@@ -132,11 +134,13 @@ const App = (() => {
     if (!c) return go('crew');
     const S = Store.get();
     const pu = Store.canPowerUp(c), pr = Store.canPromote(c);
-    const next = c.form < 3 ? FAMILIES[0].forms[c.form + 1].name : null;
+    const next = c.line !== 'port' && c.form < 3 ? DUCK_LINES[c.line || 'crew'].forms[c.form + 1] : null;
+    const variant = [c.color && COLOR_NAMES[c.color] && !c.gold ? COLOR_NAMES[c.color] + ' colour' : '', c.acc ? ACCESSORY_NAMES[c.acc] : ''].filter(Boolean).join(' · ');
     $('detail-body').innerHTML = `
-      <div class="detail-art ${c.gold ? 'gold' : ''}" id="detail-art">${ART.duckSVG(c.form, c.gold)}</div>
-      <h2>${c.gold ? '✨ Gold ' : ''}${Store.formName(c)}</h2>
-      <p class="rar">${Store.rarity(c)} · Form ${c.form} of 3</p>
+      <div class="detail-art ${c.gold ? 'gold' : ''}" id="detail-art">${ART.duckSVG(c)}</div>
+      <h2>${c.gold ? '✨ ' : ''}${esc(Store.displayName(c))}</h2>
+      <p class="rar">${esc(Store.rarity(c))} · ${c.line === 'port' ? esc(Store.lineName(c)) : `${esc(Store.lineName(c))} · Form ${c.form} of 3`}</p>
+      ${variant ? `<p class="variant">${esc(variant)}</p>` : ''}
       <div class="statgrid">
         <div><small>Level</small><b id="dt-level">${c.level}</b></div>
         <div><small>Sail Power</small><b id="dt-sp">${Store.sailPower(c)}</b></div>
@@ -147,7 +151,7 @@ const App = (() => {
           ⚡ Power Up <small>${pu.cost.shells} Shells + ${pu.cost.treats} Treats${pu.ok ? '' : ' · ' + pu.why}</small></button>
         ${next ? `<button class="btn promo" id="dt-promote" ${pr.ok ? '' : 'disabled'}>
           ⭐ Promote to ${next} <small>${pr.cost} Duck Treats${pr.ok ? '' : ' · ' + pr.why}</small></button>`
-          : `<p class="note">Captain Duck is the final form.</p>`}
+          : `<p class="note">${c.line === 'port' ? 'Port ducks keep their special look — they can still power up.' : esc(Store.formName(c)) + ' is the final form.'}</p>`}
       </div>
       <p class="wallet">You have ${S.shells} Shells · ${S.treats.duck || 0} Duck Treats</p>
       <h3>Logbook</h3>
@@ -193,7 +197,7 @@ const App = (() => {
     fx = { timers: [], raf: 0, finish: null };
     const host = $('fx');
     host.hidden = false;
-    host.innerHTML = `<div class="fx-art glow hop">${ART.duckSVG(c.form, c.gold, 'happy')}</div>
+    host.innerHTML = `<div class="fx-art glow hop">${ART.duckSVG(c, 'happy')}</div>
       <div class="fx-float">+1 LEVEL</div><div class="fx-sp">Sail Power <b id="fx-sp">${r.before}</b></div><small class="fx-skip">tap to skip</small>`;
     particles(host, 16, 'star');
     const t0 = performance.now();
@@ -209,14 +213,14 @@ const App = (() => {
   }
 
   function doPromote(c) {
-    const oldForm = c.form;
+    const before = { ...c };
     const r = Store.promote(c);
     if (!r) return renderDetail();
     cancelFx();
     fx = { timers: [], raf: 0, finish: null };
     const host = $('fx');
     host.hidden = false;
-    host.innerHTML = `<div class="fx-art charging" id="fx-art">${ART.duckSVG(oldForm, c.gold)}</div>
+    host.innerHTML = `<div class="fx-art charging" id="fx-art">${ART.duckSVG(before)}</div>
       <div class="fx-flash" id="fx-flash"></div><div class="fx-burst" id="fx-burst"></div><small class="fx-skip">tap to skip</small>`;
     particles(host, 10, 'rise');
     fxLater(() => {
@@ -224,7 +228,7 @@ const App = (() => {
       $('fx-burst').classList.add('on');
       const art = $('fx-art');
       art.className = 'fx-art emerge';
-      art.innerHTML = ART.duckSVG(c.form, c.gold, 'happy');
+      art.innerHTML = ART.duckSVG(c, 'happy');
       particles(host, 18, 'star');
     }, 1000);
     fxLater(() => {
@@ -238,15 +242,16 @@ const App = (() => {
   }
 
   function doRelease(c) {
-    const special = c.form === 3 || c.gold || c.promoted;
+    const rareColor = c.color && c.color !== 'yellow';
+    const special = c.form === 3 || c.gold || c.promoted || c.line === 'port' || rareColor;
     openSheet({
-      html: `<h2>Release ${esc(Store.formName(c))}?</h2>
+      html: `<h2>Release ${esc(Store.displayName(c))}?</h2>
         <p>Lv ${c.level} · SP ${Store.sailPower(c)}. The Harbormaster will look after it, and you'll get +${CONFIG.releaseTreats} Duck Treat.</p>
         <div class="row"><button class="btn" data-close>Keep it</button><button class="btn danger" data-act="yes">Release</button></div>`,
       onAct: (act) => {
         if (act !== 'yes') return;
         if (!special) return finish();
-        const why = [c.form === 3 && 'Rare', c.gold && 'Gold', c.promoted && 'promoted'].filter(Boolean).join(', ');
+        const why = [c.form === 3 && 'Rare', c.line === 'port' && 'port-day', c.gold && 'Gold', rareColor && COLOR_NAMES[c.color], c.promoted && 'promoted'].filter(Boolean).join(', ');
         openSheet({
           html: `<h2>Are you really sure?</h2><p>This is a <b>${why}</b> duck. Releasing it can't be undone.</p>
             <div class="row"><button class="btn primary" data-close>Keep it</button><button class="btn danger" data-act="yes">Yes, release</button></div>`,
@@ -257,7 +262,7 @@ const App = (() => {
     function finish() {
       Store.release(c);
       closeSheet();
-      toast(`${Store.formName(c)} went to the Harbormaster. +${CONFIG.releaseTreats} Duck Treat`);
+      toast(`${Store.displayName(c)} went to the Harbormaster. +${CONFIG.releaseTreats} Duck Treat`);
       go('crew');
     }
   }
@@ -265,24 +270,39 @@ const App = (() => {
   // ================= passport =================
   function renderPassport() {
     const S = Store.get();
-    let got = 0;
-    const fam = FAMILIES.map((f) => {
-      if (!f.built) return `<div class="fam locked"><h3>${f.name}</h3><div class="forms">
-        ${[1, 2, 3].map(() => `<div class="slot"><span>?</span></div>`).join('')}</div><small>Coming soon</small></div>`;
-      return `<div class="fam"><h3>${f.name}</h3><div class="forms">
-        ${[1, 2, 3].map((n) => {
-          const k = `${f.id}-${n}`, held = !!S.everHeld[k];
-          if (held) got++;
-          return `<div class="slot ${held ? 'got' : 'unseen'}">${ART.duckSVG(n, false)}
-            <small>${held ? f.forms[n].name : '???'}</small>${S.goldHeld[k] ? '<i class="goldstar" title="Gold collected">✨</i>' : ''}</div>`;
-        }).join('')}</div></div>`;
+    let got = 0, total = 0;
+    const slot = (c, held, label, k) => `<div class="slot ${held ? 'got' : 'unseen'}">${ART.duckSVG(c)}
+        <small>${held ? esc(label) : '???'}</small>${S.goldHeld[k] ? '<i class="goldstar" title="Gold collected">✨</i>' : ''}</div>`;
+    const lines = Object.entries(DUCK_LINES).map(([id, L]) => {
+      const cells = [1, 2, 3].map((n) => {
+        const k = `${id}-${n}`, held = !!S.everHeld[k];
+        total++; if (held) got++;
+        return slot({ line: id, form: n }, held, L.forms[n], k);
+      }).join('');
+      return `<div class="fam"><h3>${L.name} <small>line</small></h3><div class="forms">${cells}</div></div>`;
     }).join('');
+    const ports = Object.entries(PORT_DUCKS);
+    const portCells = ports.map(([port, info]) => {
+      const k = `port:${port}`, held = !!S.everHeld[k];
+      total++; if (held) got++;
+      return slot({ line: 'port', port, form: 1 }, held, info.name, k);
+    }).join('');
+    const others = FAMILIES.filter((f) => !f.built).map((f) => `<div class="fam locked"><h3>${f.name}</h3><div class="forms">
+        ${[1, 2, 3].map(() => `<div class="slot"><span>?</span></div>`).join('')}</div><small>Coming later</small></div>`).join('');
+    const colors = Object.keys(COLOR_NAMES).map((k) => `<span class="chip ${S.colorsHeld[k] ? 'got' : ''}">${S.colorsHeld[k] ? COLOR_NAMES[k] : '?'}</span>`).join('')
+      + `<span class="chip ${Object.keys(S.goldHeld).length ? 'got' : ''}">${Object.keys(S.goldHeld).length ? 'Gold' : '?'}</span>`;
+    const accs = Object.keys(ACCESSORY_NAMES).map((k) => `<span class="chip ${S.accHeld[k] ? 'got' : ''}">${S.accHeld[k] ? ACCESSORY_NAMES[k] : '?'}</span>`).join('');
     $('passport-body').innerHTML = `
-      <p class="pcount"><b>${got}</b> / 15 forms collected</p>${fam}
+      <p class="pcount"><b>${got}</b> / ${total} ducks collected</p>
+      ${lines}
+      <div class="fam"><h3>Port Ducks <small>only on that port's day</small></h3><div class="forms">${portCells}</div></div>
+      <div class="fam"><h3>Rare colours</h3><div class="chips">${colors}</div>
+        <h3>Accessories</h3><div class="chips">${accs}</div></div>
       <h3 class="stamps-h">Port Stamps</h3>
       <div class="stamps">${Object.keys(S.stamps).length ? Object.entries(S.stamps).map(([p, t]) =>
         `<div class="stamp"><b>${esc(p)}</b><small>${new Date(t).toLocaleDateString()}</small></div>`).join('')
-        : '<p class="empty">No stamps yet. Scan a port sign ashore to collect one.</p>'}</div>`;
+        : '<p class="empty">No stamps yet. Scan a port sign ashore to collect one.</p>'}</div>
+      <h3>More creatures</h3>${others}`;
   }
 
   // ================= sign cards =================
@@ -326,14 +346,16 @@ const App = (() => {
     const last = S.signCooldowns[sign.id];
     if (last && now - last < CONFIG.signCooldownMs) return cooldownSheet(sign);
     S.signCooldowns[sign.id] = now;
-    S.venue = { signId: sign.id, until: now + CONFIG.venueMs };
+    // Port signs start that port's day (until midnight). Ship signs last CONFIG.venueMs.
+    const midnight = new Date(); midnight.setHours(24, 0, 0, 0);
+    S.venue = { signId: sign.id, until: sign.port ? midnight.getTime() : now + CONFIG.venueMs };
     let stampNew = false;
     if (sign.port) { stampNew = !S.stamps[sign.port]; S.stamps[sign.port] = S.stamps[sign.port] || now; }
     Store.save();
     openSheet({
       html: `<div class="sheet-sign sign-${sign.style}">${esc(sign.name)}</div>
         <h2>Sign spotted: ${esc(sign.name)}</h2>
-        <p>${esc(sign.blurb)} This spot stays active for ${Math.round(CONFIG.venueMs / 60000)} minutes.</p>
+        <p>${esc(sign.blurb)} ${sign.port ? `It's ${esc(sign.port)} port day until midnight.` : `This spot stays active for ${Math.round(CONFIG.venueMs / 60000)} minutes.`}</p>
         ${sign.port ? `<p class="stampnote">🛂 ${stampNew ? 'New Port Stamp' : 'Port Stamp'}: <b>${esc(sign.port)}</b> is in your Passport.</p>` : ''}
         <div class="row"><button class="btn" data-close>Later</button><button class="btn primary" data-act="start">Start Encounter</button></div>`,
       onAct: (act) => {

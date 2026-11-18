@@ -12,8 +12,8 @@ A cruise-themed creature-collecting game: catch ducks with a flick-thrown life r
 |---|---|
 | `index.html` | All screens and overlays |
 | `css/app.css` | Styles and animations (layering: level-up banner z 90, sheets/overlays z 95) |
-| `js/config.js` | `VERSION`, testing flag, **every tuning number**, families, sign database |
-| `js/art.js` | Duck forms (full-body SVGs, gold variant), life rings |
+| `js/config.js` | `VERSION`, testing flag, **every tuning number**, duck lines (`DUCK_LINES`), port ducks (`PORT_DUCKS`), where each line spawns, colour/accessory odds, sign database |
+| `js/art.js` | All duck designs: 6 lines × 3 forms, port ducks (hand-drawn San Juan + generic flag-sash), rare colours, accessories, gold; life rings |
 | `js/store.js` | Save/load with versioned migrations, economy rules |
 | `js/catch.js` | Catch screen: flick + spin throw, landing judge, ring-around-the-neck, rescue reel |
 | `js/app.js` | Deck, Crew, Detail (power up / promote animations), Passport, Sign Cards, scanner, feedback, updates |

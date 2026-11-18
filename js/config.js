@@ -1,6 +1,6 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.0.7';
+const VERSION = '1.1.0';
 
 // Testing mode = 2 min between encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
 // PLAYTEST: while only a couple of people are testing, the normal link IS the testing build.
@@ -58,7 +58,20 @@ const CONFIG = {
   levelFactor: (lvl) => 0.6 + 0.04 * lvl,
   sizeWeights: { XS: 10, S: 20, M: 40, L: 20, XL: 10 },
   goldOdds: 1 / 128,
-  spawnWeights: { 1: 70, 2: 25, 3: 5 },        // Cruise / Sailor / Captain
+  spawnWeights: { 1: 70, 2: 25, 3: 5 },        // Form 1 / 2 / 3 (Common / Uncommon / Rare)
+
+  // Which duck line turns up where (Jeff 2026-11-18: ducks first, more duck lines).
+  lineWeights: {
+    ship: { crew: 40, pool: 15, showtime: 12, galley: 18, explorer: 7, tourist: 8 },
+    port: { tourist: 35, explorer: 30, crew: 15, pool: 10, galley: 10 },
+  },
+  // Port-day ducks: share of encounters on a port day that are that port's own special duck.
+  portDuckShare: 0.25,
+
+  // Rare colours (body feathers) — rolled after gold; gold overrides everything.
+  colorOdds: { pink: 1 / 40, blue: 1 / 40, mint: 1 / 40, white: 1 / 80, rainbow: 1 / 300 },
+  // Random accessories on any duck (skipped where the outfit already covers that spot).
+  accessoryOdds: { sunglasses: 1 / 10, lei: 1 / 14 },
 
   // Throw
   curveballSpin: 2.5,
@@ -128,10 +141,28 @@ const CONFIG = {
   },
 };
 
-// Families (L7). Only Duck is built; the others show as "coming soon" in the Passport.
+// Duck lines: each is its own 3-step promotion chain. All share Duck Treats.
+const RARITY = { 1: 'Common', 2: 'Uncommon', 3: 'Rare' };
+const DUCK_LINES = {
+  crew:     { name: 'Crew',     forms: { 1: 'Cruise Duck',      2: 'Sailor Duck',      3: 'Captain Duck' } },
+  pool:     { name: 'Pool',     forms: { 1: 'Floatie Duck',     2: 'Lifeguard Duck',   3: 'Swim Coach Duck' } },
+  showtime: { name: 'Showtime', forms: { 1: 'Dancer Duck',      2: 'Star Duck',        3: 'Cruise Director Duck' } },
+  galley:   { name: 'Galley',   forms: { 1: 'Snack Duck',       2: 'Line Cook Duck',   3: 'Head Chef Duck' } },
+  explorer: { name: 'Explorer', forms: { 1: 'Snorkel Duck',     2: 'Scuba Duck',       3: 'Deep-Sea Duck' } },
+  tourist:  { name: 'Tourist',  forms: { 1: 'Day-Tripper Duck', 2: 'Souvenir Duck',    3: 'Globetrotter Duck' } },
+};
+// Port ducks: one special duck per port, only on that port's day. Single form (can power up, not promote).
+// `art` = a hand-drawn design in art.js; ports without one get the generic port duck (sash + flag colours).
+const PORT_DUCKS = {
+  'San Juan': { name: 'San Juan Duck', art: 'sanjuan', flag: ['#ED0000', '#FFFFFF', '#0050F0'],
+                blurb: 'Straw pava hat, a coquí frog friend and a piragua to share.' },
+};
+const COLOR_NAMES = { pink: 'Pink', blue: 'Blue', mint: 'Mint', white: 'Snowy', rainbow: 'Rainbow' };
+const ACCESSORY_NAMES = { sunglasses: 'Sunglasses', lei: 'Flower Lei' };
+
+// Families (L7). Duck is built (with its lines); the others show as "coming soon" in the Passport.
 const FAMILIES = [
-  { id: 'duck',   name: 'Duck',         treat: 'Duck Treats', built: true,
-    forms: { 1: { name: 'Cruise Duck', rarity: 'Common' }, 2: { name: 'Sailor Duck', rarity: 'Uncommon' }, 3: { name: 'Captain Duck', rarity: 'Rare' } } },
+  { id: 'duck',   name: 'Duck',         treat: 'Duck Treats', built: true },
   { id: 'towel',  name: 'Towel Animal', built: false },
   { id: 'gull',   name: 'Seagull',      built: false },
   { id: 'crab',   name: 'Crab',         built: false },
@@ -141,11 +172,13 @@ const FAMILIES = [
 // Sign database (seed). Payloads are exact strings.
 const SIGNS = [
   { id: 'DDS-SIGN-LIDO',     name: 'Lido Deck',           style: 'lido',
-    weights: { 1: 45, 2: 45, 3: 10 }, blurb: 'Sailor Ducks love the pool deck.' },
+    weights: { 1: 45, 2: 45, 3: 10 }, lines: { pool: 55, crew: 20, galley: 15, explorer: 10 },
+    blurb: 'Pool Ducks love the Lido Deck.' },
   { id: 'DDS-SIGN-THEATER',  name: 'Grand Theater',       style: 'theater',
-    weights: { 1: 35, 2: 35, 3: 30 }, blurb: 'Captains come out for the show.' },
+    weights: { 1: 35, 2: 35, 3: 30 }, lines: { showtime: 60, crew: 25, galley: 15 },
+    blurb: 'Showtime Ducks come out for the show.' },
   { id: 'DDS-SIGN-LIFERING', name: 'Life Ring Station',   style: 'lifering',
-    weights: null, xpMult: CONFIG.xp.lifeRingStationMult, blurb: 'Catches here earn +50% XP.' },
+    weights: null, lines: null, xpMult: CONFIG.xp.lifeRingStationMult, blurb: 'Catches here earn +50% XP.' },
   { id: 'DDS-SIGN-SANJUAN',  name: 'Welcome to San Juan', style: 'sanjuan', port: 'San Juan',
-    weights: null, blurb: 'Port sign: stamps your Passport.' },
+    weights: null, lines: null, blurb: "Port day! San Juan's own duck is out today." },
 ];

@@ -1,7 +1,7 @@
 // Save state + game rules that change it. localStorage is guarded: a storage failure never breaks play.
 // SAVE DISCIPLINE: bump SAVE_VERSION when the shape changes and add a migration step. Never wipe a crew.
 const SAVE_KEY = 'dds_save';
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 
 const Store = (() => {
   let S = null;
@@ -17,8 +17,10 @@ const Store = (() => {
       xp: 0,                 // XP toward next Voyager level
       level: 1,
       crew: [],
-      everHeld: {},          // 'duck-1': true … (promoting through a form still counts it)
-      goldHeld: {},          // 'duck-1': true
+      everHeld: {},          // 'crew-1': true, 'port:San Juan': true … (promoting through a form still counts it)
+      goldHeld: {},          // same keys, for gold ones
+      colorsHeld: {},        // 'pink': true …
+      accHeld: {},           // 'sunglasses': true …
       stamps: {},            // 'San Juan': timestamp
       nextEncounterAt: 0,
       encounterLog: [],      // timestamps of timed encounters, for the per-hour cap
@@ -38,6 +40,21 @@ const Store = (() => {
       if (!s.rings) s.rings = { ...CONFIG.startRings };
       if (typeof s.treats === 'number') s.treats = { duck: s.treats };
       s.v = 1;
+      return s;
+    },
+    // v1 → v2: duck lines. Every existing duck becomes the Crew line (Cruise/Sailor/Captain).
+    1: (s) => {
+      for (const c of s.crew || []) {
+        if (!c.line) c.line = 'crew';
+        if (!c.color) c.color = 'yellow';
+        if (c.acc === undefined) c.acc = null;
+      }
+      const remap = (o) => { const n = {}; for (const [k, v] of Object.entries(o || {})) n[k.replace(/^duck-/, 'crew-')] = v; return n; };
+      s.everHeld = remap(s.everHeld);
+      s.goldHeld = remap(s.goldHeld);
+      if (!s.colorsHeld) s.colorsHeld = {};
+      if (!s.accHeld) s.accHeld = {};
+      s.v = 2;
       return s;
     },
   };
@@ -96,21 +113,48 @@ const Store = (() => {
   };
 
   function sailPower(c) {
-    return Math.round(CONFIG.formBasePower[c.form] * CONFIG.levelFactor(c.level));
+    const base = c.line === 'port' ? CONFIG.formBasePower[2] : CONFIG.formBasePower[c.form];
+    return Math.round(base * CONFIG.levelFactor(c.level));
   }
-  function formName(c) { return FAMILIES[0].forms[c.form].name; }
-  function rarity(c) { return FAMILIES[0].forms[c.form].rarity; }
+  // Base name, e.g. "Lifeguard Duck" or "San Juan Duck".
+  function formName(c) {
+    if (c.line === 'port') return (PORT_DUCKS[c.port] && PORT_DUCKS[c.port].name) || `${c.port} Duck`;
+    const L = DUCK_LINES[c.line || 'crew'] || DUCK_LINES.crew;
+    return L.forms[c.form];
+  }
+  // Full name with variant, e.g. "Gold Lifeguard Duck", "Pink Snack Duck".
+  function displayName(c) {
+    const pre = c.gold ? 'Gold ' : (c.color && COLOR_NAMES[c.color] ? COLOR_NAMES[c.color] + ' ' : '');
+    return pre + formName(c);
+  }
+  function rarity(c) { return c.line === 'port' ? 'Port Special' : RARITY[c.form]; }
+  function lineName(c) { return c.line === 'port' ? `${c.port} port duck` : `${(DUCK_LINES[c.line] || DUCK_LINES.crew).name} line`; }
+  function heldKey(c) { return c.line === 'port' ? `port:${c.port}` : `${c.line || 'crew'}-${c.form}`; }
 
   // Roll a wild creature for an encounter.
-  function rollWild(weights) {
-    const form = Number(pickWeighted(weights || CONFIG.spawnWeights));
-    return {
+  // opts: { weights: form weights, lines: line weights, port: name if it's that port's day }
+  function rollWild(weights, opts = {}) {
+    const base = {
       species: 'duck',
-      form,
       level: randInt(CONFIG.catchLevelRange[0], CONFIG.catchLevelRange[1]),
       size: pickWeighted(CONFIG.sizeWeights),
       gold: Math.random() < CONFIG.goldOdds,
+      color: 'yellow',
+      acc: null,
     };
+    if (opts.port && Math.random() < CONFIG.portDuckShare) {
+      Object.assign(base, { line: 'port', port: opts.port, form: 2 });   // form 2 = Uncommon catch difficulty
+    } else {
+      base.line = pickWeighted(opts.lines || (opts.port ? CONFIG.lineWeights.port : CONFIG.lineWeights.ship));
+      base.form = Number(pickWeighted(weights || CONFIG.spawnWeights));
+    }
+    if (!base.gold) {
+      for (const [col, odds] of Object.entries(CONFIG.colorOdds)) { if (Math.random() < odds) { base.color = col; break; } }
+    }
+    for (const [acc, odds] of Object.entries(CONFIG.accessoryOdds)) {
+      if (Math.random() < odds && ART.accessoryFits(base, acc)) { base.acc = acc; break; }
+    }
+    return base;
   }
 
   function addXp(amount) {
@@ -129,15 +173,18 @@ const Store = (() => {
   }
 
   function markHeld(c) {
-    S.everHeld[`${c.species}-${c.form}`] = true;
-    if (c.gold) S.goldHeld[`${c.species}-${c.form}`] = true;
+    S.everHeld[heldKey(c)] = true;
+    if (c.gold) S.goldHeld[heldKey(c)] = true;
+    if (c.color && c.color !== 'yellow') S.colorsHeld[c.color] = true;
+    if (c.acc) S.accHeld[c.acc] = true;
   }
 
   // Record a caught creature. Returns { creature, xp, levelUps }.
   function recordCatch(wild, { quality, curveball, provenance, xpMult = 1 }) {
     const c = {
       id: newId(),
-      species: wild.species, form: wild.form, level: wild.level, size: wild.size, gold: wild.gold,
+      species: wild.species, line: wild.line || 'crew', port: wild.port, form: wild.form, level: wild.level, size: wild.size,
+      gold: wild.gold, color: wild.color || 'yellow', acc: wild.acc || null,
       caughtAt: Date.now(),
       provenance: [provenance],
       promoted: false,
@@ -175,6 +222,7 @@ const Store = (() => {
   }
 
   function canPromote(c) {
+    if (c.line === 'port') return { ok: false, why: 'Port ducks keep their look', cost: 0 };
     if (c.form >= 3) return { ok: false, why: 'Final form', cost: 0 };
     const cost = CONFIG.promoteCost[c.form];
     if ((S.treats.duck || 0) < cost) return { ok: false, why: 'Not enough Duck Treats', cost };
@@ -206,5 +254,6 @@ const Store = (() => {
   }
 
   return { load, save, get, fresh, migrate, rollWild, recordCatch, addXp, sailPower, formName, rarity,
+           displayName, lineName, heldKey,
            canPowerUp, powerUp, canPromote, promote, release, pickWeighted, storageOk: () => storageOk };
 })();

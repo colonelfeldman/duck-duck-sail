@@ -200,7 +200,7 @@ with sync_playwright() as p:
     check(c1['form'] == 2 and c1['level'] == lv and len(c1['provenance']) == 2, 'promotion keeps level, adds provenance')
     s2 = pg.evaluate("Store.get().treats.duck")
     check(s2 == s1['t'] - 25, 'promotion costs 25 Treats')
-    check(pg.evaluate("Store.get().everHeld['duck-1'] && Store.get().everHeld['duck-2']"), 'Passport counts promoted-through forms')
+    check(pg.evaluate("Store.get().everHeld['crew-1'] && Store.get().everHeld['crew-2']"), 'Passport counts promoted-through forms')
     shot(pg, '15-detail-sailor')
     # tap-to-skip
     pg.evaluate("Store.get().treats.duck = 500; Store.save()")
@@ -273,8 +273,58 @@ with sync_playwright() as p:
         crew: [{id:'old1', species:'duck', form:2, level:7, size:'L', gold:false, caughtAt: 1, provenance:['Caught on board']}]}))""")
     pg.reload(); pg.wait_for_timeout(500)
     S = pg.evaluate("Store.get()")
-    check(S['v'] == 1 and len(S['crew']) == 1 and S['crew'][0]['id'] == 'old1' and S['treats']['duck'] == 9 and S['rings']['premium'] == 5,
-          'prototype-shaped save migrates without losing the crew')
+    check(S['v'] == 2 and len(S['crew']) == 1 and S['crew'][0]['id'] == 'old1' and S['crew'][0]['line'] == 'crew' and S['treats']['duck'] == 9 and S['rings']['premium'] == 5,
+          'prototype-shaped save migrates (v0→v2) without losing the crew; old ducks become the Crew line')
+    # v1 save (first distributed build) → v2
+    pg.evaluate("""localStorage.setItem('dds_save', JSON.stringify({v: 1, shells: 50, treats: {duck: 4}, rings: {premium: 2, golden: 0}, xp: 0, level: 3,
+        everHeld: {'duck-1': true, 'duck-3': true}, goldHeld: {'duck-3': true},
+        crew: [{id:'v1a', species:'duck', form:3, level:9, size:'S', gold:true, caughtAt: 1, provenance:['x'], promoted:false}]}))""")
+    pg.reload(); pg.wait_for_timeout(500)
+    S = pg.evaluate("Store.get()")
+    check(S['v'] == 2 and S['crew'][0]['line'] == 'crew' and S['everHeld'].get('crew-3') and S['goldHeld'].get('crew-3') and 'duck-1' not in S['everHeld'],
+          'v1 save migrates to v2: crew kept, Passport keys moved to the Crew line')
+    check(pg.evaluate("Store.displayName(Store.get().crew[0])") == 'Gold Captain Duck', 'migrated duck keeps its name')
+
+    # ---- duck lines, location bias, port-day ducks, variants ----
+    dist = pg.evaluate("""(() => { const n = 3000, out = {ship:{}, lido:{}, theater:{}, port:{}}, col = {}, acc = {};
+        const lido = SIGNS.find(s => s.id === 'DDS-SIGN-LIDO'), th = SIGNS.find(s => s.id === 'DDS-SIGN-THEATER');
+        for (let i = 0; i < n; i++) {
+          const a = Store.rollWild(null, {}); out.ship[a.line] = (out.ship[a.line]||0) + 1;
+          col[a.color] = (col[a.color]||0) + 1; if (a.acc) acc[a.acc] = (acc[a.acc]||0) + 1;
+          const b = Store.rollWild(lido.weights, {lines: lido.lines}); out.lido[b.line] = (out.lido[b.line]||0) + 1;
+          const c = Store.rollWild(th.weights, {lines: th.lines}); out.theater[c.line] = (out.theater[c.line]||0) + 1;
+          const d = Store.rollWild(null, {port: 'San Juan'}); out.port[d.line] = (out.port[d.line]||0) + 1;
+          if (d.line === 'port' && d.port !== 'San Juan') out.port.bad = 1;
+          if (a.acc && !ART.accessoryFits(a, a.acc)) out.ship.badacc = 1;
+        }
+        return {out, col, acc}; })()""")
+    o = dist['out']
+    print('  ship lines:', o['ship']); print('  lido:', o['lido']); print('  theater:', o['theater']); print('  port day:', o['port'])
+    print('  colours:', dist['col'], '| accessories:', dist['acc'])
+    check(len([k for k in o['ship'] if k in ('crew','pool','showtime','galley','explorer','tourist')]) == 6 and 'port' not in o['ship'], 'all six duck lines appear on board, no port ducks without a port day')
+    check(o['lido'].get('pool', 0) > 1400 and o['theater'].get('showtime', 0) > 1500, 'Lido favours Pool ducks, Theater favours Showtime ducks')
+    check(600 < o['port'].get('port', 0) < 900 and not o['port'].get('bad'), 'on San Juan port day ~25% are the San Juan Duck')
+    check(all(dist['col'].get(k, 0) > 0 for k in ('pink','blue','mint','white')) and not o['ship'].get('badacc'), 'rare colours and accessories roll, never on clashing outfits')
+    allart = pg.evaluate("""(() => { let bad = []; for (const line of Object.keys(DUCK_LINES)) for (const f of [1,2,3]) for (const v of [{}, {gold:true}, {color:'rainbow'}, {acc:'sunglasses'}, {acc:'lei'}]) {
+        const svg = ART.duckSVG({line, form: f, ...v}); if (!svg.includes('<svg') || svg.includes('undefined') || svg.includes('NaN')) bad.push(line+f+JSON.stringify(v)); }
+      for (const port of ['San Juan', 'Funchal']) { const svg = ART.duckSVG({line:'port', port, form: 2}); if (svg.includes('undefined')) bad.push(port); }
+      return bad; })()""")
+    check(allart == [], f'every line/form/variant draws cleanly {allart}')
+    # Port sign → port day until midnight, San Juan Duck can be caught, can't be promoted
+    pg.evaluate("document.getElementById('safety').hidden = true; document.getElementById('howto').hidden = true")
+    pg.evaluate("Store.get().signCooldowns = {}; Store.save()")
+    pg.evaluate("App.handleSignPayload('DDS-SIGN-SANJUAN')"); pg.wait_for_timeout(200)
+    until = pg.evaluate("Store.get().venue.until"); mid = pg.evaluate("(() => { const m = new Date(); m.setHours(24,0,0,0); return m.getTime(); })()")
+    check(until == mid and 'port day until midnight' in pg.inner_text('#sheet'), 'port sign starts port day until midnight')
+    pg.evaluate("App.closeSheet()")
+    pg.evaluate("""(() => { const r = Store.recordCatch({species:'duck', line:'port', port:'San Juan', form:2, level:4, size:'M', gold:false, color:'yellow', acc:null},
+        {quality:'Great', curveball:false, provenance:'Caught in San Juan (port sign)'}); window.__sj = r.creature.id; })()""")
+    pg.evaluate("App.go('detail', window.__sj)"); pg.wait_for_timeout(300)
+    shot(pg, '26-sanjuan-duck')
+    check('San Juan Duck' in pg.inner_text('#detail-body') and pg.locator('#dt-promote').count() == 0 and pg.is_enabled('#dt-power'), 'San Juan Duck: detail shows, power up yes, promote no')
+    pg.evaluate("App.go('passport')"); pg.wait_for_timeout(300)
+    shot(pg, '27-passport-lines')
+    check('San Juan Duck' in pg.inner_text('#passport-body') and '/ 19 ducks' in pg.inner_text('#passport-body'), 'Passport lists 6 lines + port ducks (19 total)')
     check(pg.evaluate("!!localStorage.getItem('dds_save_backup_v0')"), 'pre-migration backup kept')
     b.close()
 

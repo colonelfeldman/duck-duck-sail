@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="css/app.css?v=1.2.1">
+  <link rel="stylesheet" href="css/app.css?v=1.3.0">
 </head>
 <body data-screen="deck">
 
@@ -30,9 +30,10 @@
       <div><small>Shells</small><b>🐚 <span id="d-shells">0</span></b></div>
       <div><small>Duck Treats</small><b>🍪 <span id="d-treats">0</span></b></div>
       <div><small>Crew</small><b>🦆 <span id="d-crew">0</span></b></div>
-      <div><small>Rings</small><b class="rings"><span class="rp">P×<span id="d-premium">0</span></span> <span class="rg">G×<span id="d-golden">0</span></span></b></div>
+      <div><small>Life Rings</small><b class="rings"><span id="d-life">0</span><small id="d-lifecap"></small></b><small class="rpg"><span class="rp">P×<span id="d-premium">0</span></span> <span class="rg">G×<span id="d-golden">0</span></span></small></div>
     </div>
     <div id="d-venue" class="venue" hidden></div>
+    <button id="d-topup" class="topup" hidden>🛟 Running low on Life Rings? <b>Claim your daily +10</b></button>
     <button id="d-encounter" class="encounter"></button>
     <button class="lookfor" data-go="look">🔍 <b>Look for ducks</b><span>Point your camera around — ducks hide near things they love</span></button>
     <p class="safety-line">🛑 Stop walking before you catch.</p>
@@ -170,7 +171,8 @@
       <li>Ducks bob and dodge — aim where the duck <i>will be</i>.</li>
       <li><b>Spin:</b> circle the ring with your finger before you flick. Spin curves the throw. Enough spin is a <b>Curveball</b>: bonus XP and an easier reel.</li>
       <li>The ring has to land on the duck: <b>Excellent</b>, <b>Great</b> or <b>Nice</b>. A miss splashes in the water.</li>
-      <li><b>Premium</b> and <b>Golden</b> rings are easier to land and reel, and are used up on every throw. You get a Premium Ring each Voyager level.</li>
+      <li>Every ring is used up when you throw it. <b>Life Rings</b>: restock by finding real life rings on deck (and at Life Ring Station signs). Your ring bag holds more as your Voyager level goes up, each level-up adds +10, and if you're down to your last few you can claim a daily +10 on the Deck.</li>
+      <li><b>Premium</b> and <b>Golden</b> rings are easier to land and reel. You get a Premium Ring each Voyager level.</li>
       <li>Ducks can paddle away after too many misses.</li>
     </ul>
     <h3>Rescue reel</h3>
@@ -247,13 +249,13 @@
 
 <footer class="foot"><span id="ver"></span><span class="testbadge">TESTING</span> · <button class="linkbtn" data-feedback>Send feedback</button></footer>
 
-<script src="vendor/qrcode.js?v=1.2.1"></script>
-<script src="vendor/jsQR.js?v=1.2.1"></script>
-<script src="js/config.js?v=1.2.1"></script>
-<script src="js/art.js?v=1.2.1"></script>
-<script src="js/store.js?v=1.2.1"></script>
-<script src="js/recognize.js?v=1.2.1"></script>
-<script src="js/catch.js?v=1.2.1"></script>
-<script src="js/app.js?v=1.2.1"></script>
+<script src="vendor/qrcode.js?v=1.3.0"></script>
+<script src="vendor/jsQR.js?v=1.3.0"></script>
+<script src="js/config.js?v=1.3.0"></script>
+<script src="js/art.js?v=1.3.0"></script>
+<script src="js/store.js?v=1.3.0"></script>
+<script src="js/recognize.js?v=1.3.0"></script>
+<script src="js/catch.js?v=1.3.0"></script>
+<script src="js/app.js?v=1.3.0"></script>
 </body>
 </html>

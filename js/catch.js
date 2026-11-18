@@ -330,10 +330,13 @@ const Catch = (() => {
 
   function renderRings() {
     const S = Store.get();
-    const counts = { life: '∞', premium: S.rings.premium, golden: S.rings.golden };
-    if (E.ringType !== 'life' && !(S.rings[E.ringType] > 0)) E.ringType = 'life';
+    const counts = { life: S.rings.life || 0, premium: S.rings.premium, golden: S.rings.golden };
+    if (!(S.rings[E.ringType] > 0)) E.ringType = ['life', 'premium', 'golden'].find((k) => S.rings[k] > 0) || 'life';
+    const out = Store.totalRings() <= 0;
+    el['scr-catch'].classList.toggle('no-rings', out);
+    if (out && E.phase === 'aim') hint('Out of rings! Leave and use 🔍 Look for ducks to spot a real life ring on deck — or claim your daily top-up.');
     el['c-rings'].innerHTML = ['life', 'premium', 'golden'].map((k) => {
-      const dis = k !== 'life' && !(S.rings[k] > 0);
+      const dis = !(S.rings[k] > 0);
       return `<button class="ringbtn ${E.ringType === k ? 'sel' : ''}" data-ring="${k}" ${dis ? 'disabled' : ''}>
         <span class="mini">${ART.ringSVG(k)}</span><span>${CONFIG.rings[k].name.replace(' Ring', '')}</span><b>×${counts[k]}</b></button>`;
     }).join('');
@@ -420,6 +423,7 @@ const Catch = (() => {
     if (!E || E.phase !== 'aim') return;
     ev.preventDefault();
     ev.stopPropagation();
+    if (!(Store.get().rings[E.ringType] > 0)) { renderRings(); return; }   // out of rings
     try { el.flyring.setPointerCapture(ev.pointerId); } catch (e) {}
     const p = localPt(ev);
     E.drag = { id: ev.pointerId, samples: [{ ...p, t: performance.now() }], lastAng: null, moved: 0, lastP: p };
@@ -487,6 +491,7 @@ const Catch = (() => {
   function onThrowButton(ev) {
     ev.stopPropagation();
     if (!E || E.phase !== 'aim') return;
+    if (!(Store.get().rings[E.ringType] > 0)) { renderRings(); return; }
     const h = hitCenter();
     const a = Math.random() * Math.PI * 2, r = Math.random() * CONFIG.buttonThrowSpread * E.R;
     const to = { x: h.x + Math.cos(a) * r, y: h.y + Math.sin(a) * r };
@@ -499,7 +504,7 @@ const Catch = (() => {
   function throwRing(from, to, dir, spin, viaButton) {
     const S = Store.get();
     const type = E.ringType;
-    if (type !== 'life') { S.rings[type] = Math.max(0, S.rings[type] - 1); }   // consumed hit or miss
+    S.rings[type] = Math.max(0, (S.rings[type] || 0) - 1);                     // every ring is used up, hit or miss
     S.stats.throws += 1;
     Store.save();
     const perp = { x: -dir.y, y: dir.x };

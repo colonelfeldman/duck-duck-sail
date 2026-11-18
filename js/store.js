@@ -1,7 +1,7 @@
 // Save state + game rules that change it. localStorage is guarded: a storage failure never breaks play.
 // SAVE DISCIPLINE: bump SAVE_VERSION when the shape changes and add a migration step. Never wipe a crew.
 const SAVE_KEY = 'dds_save';
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 const Store = (() => {
   let S = null;
@@ -13,7 +13,9 @@ const Store = (() => {
       createdAt: Date.now(),
       shells: CONFIG.starter.shells,
       treats: { duck: CONFIG.starter.treats },
-      rings: { premium: CONFIG.startRings.premium, golden: CONFIG.startRings.golden },
+      rings: { life: CONFIG.startRings.life, premium: CONFIG.startRings.premium, golden: CONFIG.startRings.golden },
+      lifeTopUpDay: null,    // 'YYYY-MM-DD' of the last daily Life Ring top-up
+      lifeScanAt: 0,         // last life-ring refill from the camera
       xp: 0,                 // XP toward next Voyager level
       level: 1,
       crew: [],
@@ -35,9 +37,11 @@ const Store = (() => {
   // The prototype (Muse artifact, "v1" shape) had no ring inventory; fill defaults instead of wiping.
   const MIGRATIONS = {
     0: (s) => {
+      const hadRings = !!s.rings;
       const f = fresh();
       for (const k of Object.keys(f)) if (s[k] === undefined) s[k] = f[k];
-      if (!s.rings) s.rings = { ...CONFIG.startRings };
+      // prototype saves had no ring inventory; Life Rings are filled to the bag size by the v2 → v3 step
+      if (!hadRings) s.rings = { premium: CONFIG.startRings.premium, golden: CONFIG.startRings.golden };
       if (typeof s.treats === 'number') s.treats = { duck: s.treats };
       s.v = 1;
       return s;
@@ -55,6 +59,13 @@ const Store = (() => {
       if (!s.colorsHeld) s.colorsHeld = {};
       if (!s.accHeld) s.accHeld = {};
       s.v = 2;
+      return s;
+    },
+    // v2 → v3: Life Rings stop being unlimited. Everyone starts with a full bag for their level.
+    2: (s) => {
+      s.rings = s.rings || {};
+      if (typeof s.rings.life !== 'number') s.rings.life = CONFIG.lifeRings.bagCap(s.level || 1);
+      s.v = 3;
       return s;
     },
   };
@@ -160,6 +171,28 @@ const Store = (() => {
     return base;
   }
 
+  // ---- Life Rings ----
+  const bagCap = () => CONFIG.lifeRings.bagCap(S.level);
+  // Adds up to n Life Rings without passing the bag size. Returns how many were actually added.
+  function addLifeRings(n) {
+    const before = S.rings.life || 0;
+    S.rings.life = Math.min(bagCap(), before + n);
+    return Math.max(0, S.rings.life - before);
+  }
+  const todayStr = () => new Date().toLocaleDateString('en-CA');
+  function canTopUp() {
+    const T = CONFIG.lifeRings.dailyTopUp;
+    return S.lifeTopUpDay !== todayStr() && (S.rings.life || 0) < T.whenBelow;
+  }
+  function claimTopUp() {
+    if (!canTopUp()) return 0;
+    S.lifeTopUpDay = todayStr();
+    const got = addLifeRings(CONFIG.lifeRings.dailyTopUp.amount);
+    save();
+    return got;
+  }
+  const totalRings = () => (S.rings.life || 0) + (S.rings.premium || 0) + (S.rings.golden || 0);
+
   function addXp(amount) {
     // Returns list of { level, rewards } for each level gained.
     const gained = [];
@@ -169,7 +202,9 @@ const Store = (() => {
       S.xp -= CONFIG.xpToNext(S.level);
       S.level += 1;
       S.rings.premium += CONFIG.levelUpRewards.premium;
-      gained.push({ level: S.level, rewards: [`+${CONFIG.levelUpRewards.premium} Premium Ring`, `Power-up cap → Lv ${CONFIG.powerUpCap(S.level)}`] });
+      const lifeGot = addLifeRings(CONFIG.lifeRings.levelUp);
+      gained.push({ level: S.level, rewards: [`+${CONFIG.levelUpRewards.premium} Premium Ring`, `Power-up cap → Lv ${CONFIG.powerUpCap(S.level)}`,
+        lifeGot ? `+${lifeGot} Life Rings` : 'Ring bag full', `Ring bag holds ${CONFIG.lifeRings.bagCap(S.level)}`] });
     }
     if (S.level >= CONFIG.voyagerMax) S.xp = 0;
     return gained;
@@ -260,6 +295,6 @@ const Store = (() => {
   }
 
   return { load, save, get, fresh, migrate, rollWild, recordCatch, addXp, sailPower, formName, rarity,
-           displayName, lineName, heldKey,
+           displayName, lineName, heldKey, addLifeRings, bagCap, canTopUp, claimTopUp, totalRings,
            canPowerUp, powerUp, canPromote, promote, release, pickWeighted, storageOk: () => storageOk };
 })();

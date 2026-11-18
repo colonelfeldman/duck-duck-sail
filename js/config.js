@@ -1,6 +1,6 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.2.1';
+const VERSION = '1.3.0';
 
 // Testing mode = 2 min between encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
 // PLAYTEST: while only a couple of people are testing, the normal link IS the testing build.
@@ -28,7 +28,15 @@ const CONFIG = {
 
   // Economy
   starter: { shells: 300, treats: 50 },        // labelled in How to Play
-  startRings: { premium: 5, golden: 1 },
+  startRings: { life: 30, premium: 5, golden: 1 },
+  // Life Rings are limited (Jeff 2026-11-18): find real life rings on the ship with the camera to restock.
+  lifeRings: {
+    bagCap: (voyagerLevel) => 30 + 5 * (voyagerLevel - 1),   // max Life Rings you can carry (Lv1 30, Lv10 75, Lv30 175)
+    scanRefill: 10,                                          // + per real life ring spotted
+    scanCooldownMs: TESTING ? 2 * MIN : 15 * MIN,            // between life-ring refills
+    levelUp: 10,                                             // + on each Voyager level-up
+    dailyTopUp: { amount: 10, whenBelow: 10 },               // once a day, if you're running low
+  },
   catchReward: { shells: 100, treats: 3 },
   releaseTreats: 1,
   crewCap: 250,
@@ -43,7 +51,7 @@ const CONFIG = {
   },
   voyagerMax: 30,
   xpToNext: (lvl) => 250 + 150 * (lvl - 1),    // XP needed to go from lvl to lvl+1
-  levelUpRewards: { premium: 1 },
+  levelUpRewards: { premium: 1 },               // (+ CONFIG.lifeRings.levelUp Life Rings)
 
   // Creatures
   catchLevelRange: [1, 10],
@@ -191,7 +199,7 @@ const SIGNS = [
     weights: { 1: 35, 2: 35, 3: 30 }, lines: { showtime: 60, crew: 25, galley: 15 },
     blurb: 'Showtime Ducks come out for the show.' },
   { id: 'DDS-SIGN-LIFERING', name: 'Life Ring Station',   style: 'lifering',
-    weights: null, lines: null, xpMult: CONFIG.xp.lifeRingStationMult, blurb: 'Catches here earn +50% XP.' },
+    weights: null, lines: null, xpMult: CONFIG.xp.lifeRingStationMult, lifeRefill: true, blurb: 'Restocks Life Rings, and catches here earn +50% XP.' },
   { id: 'DDS-SIGN-SANJUAN',  name: 'Welcome to San Juan', style: 'sanjuan', port: 'San Juan',
     weights: null, lines: null, blurb: "Port day! San Juan's own duck is out today." },
 ];

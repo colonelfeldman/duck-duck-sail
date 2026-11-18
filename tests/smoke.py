@@ -273,16 +273,44 @@ with sync_playwright() as p:
         crew: [{id:'old1', species:'duck', form:2, level:7, size:'L', gold:false, caughtAt: 1, provenance:['Caught on board']}]}))""")
     pg.reload(); pg.wait_for_timeout(500)
     S = pg.evaluate("Store.get()")
-    check(S['v'] == 2 and len(S['crew']) == 1 and S['crew'][0]['id'] == 'old1' and S['crew'][0]['line'] == 'crew' and S['treats']['duck'] == 9 and S['rings']['premium'] == 5,
-          'prototype-shaped save migrates (v0→v2) without losing the crew; old ducks become the Crew line')
+    check(S['v'] == 3 and len(S['crew']) == 1 and S['crew'][0]['id'] == 'old1' and S['crew'][0]['line'] == 'crew' and S['treats']['duck'] == 9 and S['rings']['premium'] == 5 and S['rings']['life'] == 35,
+          'prototype-shaped save migrates (v0→v3) without losing the crew; Crew line; full Life Ring bag for its level')
     # v1 save (first distributed build) → v2
     pg.evaluate("""localStorage.setItem('dds_save', JSON.stringify({v: 1, shells: 50, treats: {duck: 4}, rings: {premium: 2, golden: 0}, xp: 0, level: 3,
         everHeld: {'duck-1': true, 'duck-3': true}, goldHeld: {'duck-3': true},
         crew: [{id:'v1a', species:'duck', form:3, level:9, size:'S', gold:true, caughtAt: 1, provenance:['x'], promoted:false}]}))""")
     pg.reload(); pg.wait_for_timeout(500)
     S = pg.evaluate("Store.get()")
-    check(S['v'] == 2 and S['crew'][0]['line'] == 'crew' and S['everHeld'].get('crew-3') and S['goldHeld'].get('crew-3') and 'duck-1' not in S['everHeld'],
-          'v1 save migrates to v2: crew kept, Passport keys moved to the Crew line')
+    check(S['v'] == 3 and S['crew'][0]['line'] == 'crew' and S['everHeld'].get('crew-3') and S['goldHeld'].get('crew-3') and 'duck-1' not in S['everHeld'] and S['rings']['life'] == 40,
+          'v1 save migrates to v3: crew kept, Passport keys moved, Life Rings = bag size for Voyager Lv 3')
+
+    # ---- Life Ring economy ----
+    pg.evaluate("document.getElementById('safety').hidden = true; document.getElementById('howto').hidden = true")
+    pg.evaluate("(() => { const S = Store.get(); S.level = 1; S.xp = 0; S.rings = {life: 2, premium: 0, golden: 0}; S.lifeTopUpDay = null; S.nextEncounterAt = 0; S.encounterLog = []; Store.save(); App.go('deck'); })()")
+    check(pg.inner_text('#d-life') == '2' and pg.inner_text('#d-lifecap') == '/30' and pg.is_visible('#d-topup'), 'Deck shows Life Rings 2/30 and the daily top-up offer')
+    for _ in range(2):    # one throw per encounter (a landed throw starts the reel)
+        pg.evaluate("Store.get().nextEncounterAt = 0; Store.get().encounterLog = []; App.startTimedEncounter()"); pg.wait_for_timeout(700)
+        pg.click('#c-throw'); pg.wait_for_timeout(300)
+        pg.evaluate("Catch.exit('deck')")
+    check(pg.evaluate("Store.get().rings.life") == 0, 'each throw uses a Life Ring (2 → 0)')
+    pg.evaluate("Store.get().nextEncounterAt = 0; Store.get().encounterLog = []; App.startTimedEncounter()"); pg.wait_for_timeout(700)
+    check('Out of rings' in pg.inner_text('#c-hint') and pg.evaluate("Catch.debug().phase") == 'aim', 'out of rings → clear message')
+    pg.click('#c-throw'); pg.wait_for_timeout(300)
+    check(pg.evaluate("Catch.debug().phase") == 'aim' and pg.evaluate("Store.get().stats.throws") >= 0, 'cannot throw with no rings')
+    shot(pg, '28-out-of-rings')
+    pg.click('#c-x'); pg.wait_for_timeout(200)
+    pg.click('#d-topup'); pg.wait_for_timeout(200)
+    check(pg.evaluate("Store.get().rings.life") == 10 and not pg.is_visible('#d-topup'), 'daily top-up gives +10 once')
+    check(pg.evaluate("Store.claimTopUp()") == 0, 'top-up can\'t be claimed twice in a day')
+    pg.evaluate("Store.get().rings.life = 28; Store.save()")
+    lv = pg.evaluate("Store.addXp(CONFIG.xpToNext(1))")
+    check(pg.evaluate("Store.get().rings.life") == 35 and pg.evaluate("Store.bagCap()") == 35, f'level-up: +10 Life Rings but capped at the new bag size (28 → 35/35)')
+    check(any('Life Rings' in r for r in lv[0]['rewards']), 'level-up banner mentions Life Rings')
+    check(pg.evaluate("Store.addLifeRings(10)") == 0, 'a full bag takes no more rings')
+    pg.evaluate("Store.get().rings.life = 5; Store.get().lifeScanAt = 0; Store.get().signCooldowns = {}; Store.save(); App.go('scan')"); pg.wait_for_timeout(300)
+    pg.click('[data-sim="DDS-SIGN-LIFERING"]'); pg.wait_for_timeout(200)
+    check('+10 Life Rings' in pg.inner_text('#sheet') and pg.evaluate("Store.get().rings.life") == 15, 'Life Ring Station sign restocks +10 Life Rings')
+    pg.evaluate("App.closeSheet(); App.go('deck')")
     check(pg.evaluate("Store.displayName(Store.get().crew[0])") == 'Gold Captain Duck', 'migrated duck keeps its name')
 
     # ---- duck lines, location bias, port-day ducks, variants ----

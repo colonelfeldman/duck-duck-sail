@@ -87,6 +87,9 @@ const App = (() => {
     $('d-shells').textContent = S.shells;
     $('d-treats').textContent = S.treats.duck || 0;
     $('d-crew').textContent = `${S.crew.length}`;
+    $('d-life').textContent = S.rings.life || 0;
+    $('d-lifecap').textContent = '/' + Store.bagCap();
+    $('d-topup').hidden = !Store.canTopUp();
     $('d-premium').textContent = S.rings.premium;
     $('d-golden').textContent = S.rings.golden;
     tickDeck();
@@ -351,6 +354,16 @@ const App = (() => {
     // Port signs start that port's day (until midnight). Ship signs last CONFIG.venueMs.
     const midnight = new Date(); midnight.setHours(24, 0, 0, 0);
     S.venue = { signId: sign.id, until: sign.port ? midnight.getTime() : now + CONFIG.venueMs };
+    let ringMsg = '';
+    if (sign.lifeRefill) {
+      const left = (S.lifeScanAt || 0) + CONFIG.lifeRings.scanCooldownMs - now;
+      if (left > 0) ringMsg = `Life Rings restock again in ${fmtDur(left)}.`;
+      else {
+        const got = Store.addLifeRings(CONFIG.lifeRings.scanRefill);
+        if (got) { S.lifeScanAt = now; ringMsg = `🛟 +${got} Life Rings (${S.rings.life}/${Store.bagCap()})`; }
+        else ringMsg = 'Your ring bag is full.';
+      }
+    }
     let stampNew = false;
     if (sign.port) { stampNew = !S.stamps[sign.port]; S.stamps[sign.port] = S.stamps[sign.port] || now; }
     Store.save();
@@ -358,6 +371,7 @@ const App = (() => {
       html: `<div class="sheet-sign sign-${sign.style}">${esc(sign.name)}</div>
         <h2>Sign spotted: ${esc(sign.name)}</h2>
         <p>${esc(sign.blurb)} ${sign.port ? `It's ${esc(sign.port)} port day until midnight.` : `This spot stays active for ${Math.round(CONFIG.venueMs / 60000)} minutes.`}</p>
+        ${ringMsg ? `<p class="stampnote">${esc(ringMsg)}</p>` : ''}
         ${sign.port ? `<p class="stampnote">🛂 ${stampNew ? 'New Port Stamp' : 'Port Stamp'}: <b>${esc(sign.port)}</b> is in your Passport.</p>` : ''}
         <div class="row"><button class="btn" data-close>Later</button><button class="btn primary" data-act="start">Start Encounter</button></div>`,
       onAct: (act) => {
@@ -564,6 +578,7 @@ const App = (() => {
       if (act && sheet.onAct) { sheet.onAct(act.dataset.act); return; }
     });
     $('d-encounter').onclick = startTimedEncounter;
+    $('d-topup').onclick = () => { const got = Store.claimTopUp(); toast(got ? `+${got} Life Rings — happy hunting!` : 'Your ring bag is full.'); renderDeck(); };
     $('menu-btn').onclick = openMenu;
     document.querySelectorAll('[data-feedback]').forEach((b) => (b.onclick = openFeedback));
     document.querySelectorAll('[data-howto]').forEach((b) => (b.onclick = () => { closeMenu(); openOverlay('howto'); }));

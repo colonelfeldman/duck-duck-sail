@@ -5,7 +5,8 @@
 import pathlib, sys, time
 from playwright.sync_api import sync_playwright
 
-BASE = 'http://127.0.0.1:8765/index.html'
+import os
+BASE = os.environ.get('DDS_BASE', 'http://127.0.0.1:8765/index.html')   # DDS_BASE=https://colonelfeldman.github.io/duck-duck-sail/ to test live
 OUT = pathlib.Path(__file__).parent / 'out'
 OUT.mkdir(exist_ok=True)
 fails, errors = [], []

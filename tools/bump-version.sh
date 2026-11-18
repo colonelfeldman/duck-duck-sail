@@ -7,4 +7,6 @@ new="$1"
 if [ -z "$new" ]; then new=$(echo "$cur" | awk -F. '{ $NF = $NF + 1; print }' OFS=.); fi
 sed -i '' "s/^const VERSION = '.*';/const VERSION = '$new';/" js/config.js
 printf '{ "version": "%s" }\n' "$new" > version.json
+# every file index.html loads carries ?v=<version> so caches can't serve old copies after an update
+sed -i '' "s/?v=[0-9][0-9.]*\"/?v=$new\"/g" index.html
 echo "VERSION $cur -> $new"

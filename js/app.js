@@ -482,7 +482,14 @@ const App = (() => {
       const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
       if (!r.ok) return;
       const j = await r.json();
-      if (j.version && j.version !== VERSION) $('update-bar').hidden = false;
+      if (j.version && j.version !== VERSION) {
+        const bar = $('update-bar');
+        bar.dataset.v = j.version;
+        // Already tried this exact version and still got the old files? The host is still publishing.
+        const tried = new URLSearchParams(location.search).get('v') === j.version;
+        bar.textContent = tried ? 'Update still arriving — tap to try again' : 'New version available — tap to refresh';
+        bar.hidden = false;
+      }
     } catch (e) {}
   }
 
@@ -520,7 +527,23 @@ const App = (() => {
     $('signs-grid').addEventListener('click', (ev) => { const b = ev.target.closest('[data-sign]'); if (b) showSignFull(b.dataset.sign); });
     $('fx').addEventListener('click', () => { if (fx && fx.finish) fx.finish(); });
     $('lvl-banner').onclick = () => { $('lvl-banner').hidden = true; };
-    $('update-bar').onclick = () => location.reload();
+    // Load the page at a brand-new address (?v=<new version>) so no browser or CDN cache can hand back old files.
+    // Every file in index.html is also versioned (?v=…), so the new page pulls fresh scripts too.
+    $('update-bar').onclick = () => {
+      const u = new URL(location.href);
+      u.searchParams.set('v', $('update-bar').dataset.v || Date.now());
+      u.searchParams.set('r', Date.now().toString(36));
+      $('update-bar').textContent = 'Updating…';
+      location.replace(u.toString());
+    };
+    // After a successful update, tidy the address bar (keep ?test=… if present).
+    try {
+      const u = new URL(location.href);
+      if (u.searchParams.get('v') === VERSION) {
+        u.searchParams.delete('v'); u.searchParams.delete('r');
+        history.replaceState(null, '', u.pathname + (u.search ? u.search : '') + u.hash);
+      }
+    } catch (e) {}
     $('safety-ok').onclick = () => {
       const S = Store.get(); S.seen.safety = true; Store.save();
       closeOverlay('safety');

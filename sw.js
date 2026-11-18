@@ -25,11 +25,12 @@ self.addEventListener('fetch', (e) => {
       const fresh = await fetch(req, { cache: 'no-cache' });                // revalidate past the HTTP cache
       if (fresh && fresh.ok) {
         const copy = fresh.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        // keep one copy per file: drop older ?v=… versions, then store this one
+        caches.open(CACHE).then(async (c) => { await c.delete(req, { ignoreSearch: true }); await c.put(req, copy); }).catch(() => {});
       }
       return fresh;
     } catch (err) {
-      const hit = await caches.match(req, { ignoreSearch: req.mode === 'navigate' });
+      const hit = (await caches.match(req)) || (await caches.match(req, { ignoreSearch: true }));
       if (hit) return hit;
       if (req.mode === 'navigate') { const idx = await caches.match('index.html'); if (idx) return idx; }
       throw err;

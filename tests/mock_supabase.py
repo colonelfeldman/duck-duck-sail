@@ -161,6 +161,7 @@ def login(pg, email='tester@example.com', password='duckduck123', profile='Teste
         else:
             if not pg.is_visible('#profiles-form'): pg.click('#profiles-add')
             pg.fill('#pf-name', profile)
+            if pg.is_visible('#pf-age'): pg.check('#pf-age')
             if kid: pg.check('#pf-kid')
             pg.click('#pf-submit')
             pg.wait_for_timeout(400)

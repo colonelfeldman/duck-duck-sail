@@ -111,6 +111,7 @@ const Account = (() => {
       : signup ? 'Already have an account? <button class="linkbtn" data-auth="signin">Sign in</button>'
       : 'New here? <button class="linkbtn" data-auth="signup">Create an account</button> · <button class="linkbtn" data-auth="reset">Forgot password?</button>';
     $('auth-google').hidden = !CONFIG.auth.google || reset;
+    $('auth-or').hidden = $('auth-google').hidden;
     $('auth-msg').textContent = msg;
     $('auth-msg').className = 'fb-status ' + (msg ? (bad ? 'bad' : 'good') : '');
   }
@@ -170,6 +171,7 @@ const Account = (() => {
     $('profiles-add').hidden = profiles.length >= 8;
     $('profiles-form').hidden = profiles.length > 0;
     $('pf-kid-row').hidden = profiles.length === 0;   // the first profile is the account holder's own
+    $('pf-age-row').hidden = profiles.length > 0;      // …and they confirm they're 13+ (covers Google sign-ups too)
     $('profiles-msg').textContent = msg;
     $('profiles-email').textContent = (session && session.user && session.user.email) || '';
   }
@@ -178,6 +180,7 @@ const Account = (() => {
     const name = $('pf-name').value.trim().slice(0, 20);
     const isKid = !$('pf-kid-row').hidden && $('pf-kid').checked;
     if (!name) return renderProfiles('Enter a name (first name or nickname).');
+    if (!$('pf-age-row').hidden && !$('pf-age').checked) return renderProfiles("Please confirm you're 13 or older — kids play on players you add next.");
     if (!online()) return renderProfiles('You need a connection to add a player.');
     $('pf-submit').disabled = true;
     try {

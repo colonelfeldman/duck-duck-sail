@@ -35,6 +35,17 @@ with sync_playwright() as p:
     check('All Ashore' in pg.inner_text('#scr-auth'), 'sign-in says it is the All Ashore login')
     pg.screenshot(path=str(OUT / 'acct-01-signin.png'))
 
+    # Google button → Supabase Google sign-in that returns to the game's own address
+    check(pg.is_visible('#auth-google'), 'Continue with Google is shown')
+    seen = []
+    pg.route('**/auth/v1/authorize*', lambda route, req: (seen.append(req.url), route.fulfill(status=200, body='ok')))
+    pg.click('#auth-google'); pg.wait_for_timeout(1000)
+    import urllib.parse as up
+    rt = up.parse_qs(up.urlparse(seen[0]).query) if seen else {}
+    check(seen and rt.get('provider') == ['google'] and rt.get('redirect_to', [''])[0].startswith(BASE.split('/index.html')[0]),
+          f"Google sign-in goes to Supabase and asks to come back to the game: {rt.get('redirect_to')}")
+    pg.goto(BASE + '?test=1'); pg.wait_for_selector('#scr-auth:not([hidden])')
+
     # sign-up needs the 13+ confirmation
     pg.click('[data-auth="signup"]'); pg.fill('#auth-email', 'new@example.com'); pg.fill('#auth-pass', 'longenough1'); pg.click('#auth-submit'); pg.wait_for_timeout(300)
     check('13 or older' in pg.inner_text('#auth-msg'), 'sign-up refuses without the 13+ confirmation')
@@ -48,7 +59,9 @@ with sync_playwright() as p:
     pg.wait_for_selector('#scr-profiles:not([hidden])', timeout=10000)
     check(pg.is_visible('#profiles-form') and not pg.is_visible('#pf-kid-row'), 'first sign-in → create your own player (no kid box)')
     pg.screenshot(path=str(OUT / 'acct-02-first-profile.png'))
-    pg.fill('#pf-name', 'Jeff'); pg.click('#pf-submit')
+    pg.fill('#pf-name', 'Jeff'); pg.click('#pf-submit'); pg.wait_for_timeout(300)
+    check('13 or older' in pg.inner_text('#profiles-msg'), 'first player needs the 13+ confirmation (covers Google sign-ups)')
+    pg.check('#pf-age'); pg.click('#pf-submit')
     pg.wait_for_selector('#scr-deck:not([hidden])', timeout=10000)
     check(True, 'creating the first player goes straight into the game')
     # legacy import offer

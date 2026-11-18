@@ -1,6 +1,6 @@
 // Duck, Duck, Sail! — every tuning number lives here (spec L8: starting values, re-tune after playtests).
 // Bump VERSION on every deploy with: ./tools/bump-version.sh
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 
 // Testing mode = 2 min between encounters, 60 s sign cooldowns, simulate-scan buttons, TESTING badge.
 // PLAYTEST: while only a couple of people are testing, the normal link IS the testing build.
@@ -155,8 +155,9 @@ const CONFIG = {
   // Post-catch auto return to Deck
   celebrateAutoMs: 8000,
 
-  // Sign-in (shared with All Ashore). Google needs the game's address in Supabase → Auth → Redirect URLs first.
-  auth: { google: false },
+  // Sign-in (shared with All Ashore). Google works because the game's address is in Supabase → Auth → Redirect URLs
+  // (added by Jeff 2026-11-18: https://colonelfeldman.github.io/duck-duck-sail/**). A new address needs adding there too.
+  auth: { google: true },
 
   supabase: {
     url: 'https://fubiwzfddoboajjkvfph.supabase.co',

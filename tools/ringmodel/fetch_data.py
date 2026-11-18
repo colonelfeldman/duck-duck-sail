@@ -20,7 +20,7 @@ def api(params):
     if os.path.exists(cpath):
         return json.load(open(cpath))
     for attempt in range(6):
-        wait = 1.0 - (time.time() - _last[0])
+        wait = 3.0 - (time.time() - _last[0])
         if wait > 0: time.sleep(wait)
         _last[0] = time.time()
         r = subprocess.run(['curl', '-s', '--max-time', '40', '-A', UA, '-w', '\n%{http_code}', url], capture_output=True, text=True)

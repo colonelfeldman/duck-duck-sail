@@ -375,3 +375,6 @@ label.check input { width: auto; margin-top: 3px; }
 .pcard b { color: var(--navy); font-size: 1.05rem; } .pcard small { background: #FFF1B8; color: #6f5100; border-radius: 99px; padding: 1px 8px; font-weight: 800; }
 .sync { font-size: .72rem; } .sync.ok { color: var(--good); } .sync.off { color: #B4361B; }
 #foot-player { font-weight: 800; color: var(--navy); }
+.auth-or { display: flex; align-items: center; gap: 10px; color: var(--muted); margin: 12px 0 0; font-size: .85rem; }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.gbtn { flex-direction: row; justify-content: center; gap: 10px; }

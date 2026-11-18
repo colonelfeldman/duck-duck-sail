@@ -22,11 +22,42 @@ const Recognize = (() => {
   const capLeft = () => Math.max(0, RC().dailyCap - state().count);
 
   // ---------- model ----------
+  // Engine + model, fetched up front so we can show progress. The service worker keeps them
+  // (cache-first), so the later MediaPipe fetches of the same files are instant and work offline.
+  const FILES = [
+    ['vendor/mediapipe/vision_bundle.mjs', 156062],
+    ['vendor/mediapipe/wasm/vision_wasm_internal.js', 334128],
+    ['vendor/mediapipe/wasm/vision_wasm_internal.wasm', 14603354],
+    ['vendor/models/efficientnet_lite0.tflite', 5434517],
+  ];
+  const TOTAL_MB = 10;      // actual network transfer (GitHub Pages compresses the 14.6 MB engine to ~4.2 MB)
+  let onProgress = null;
+  async function prefetch(cb) {
+    const total = FILES.reduce((a, f) => a + f[1], 0);
+    let done = 0;
+    for (const [path, size] of FILES) {
+      const res = await fetch(path);
+      if (!res.ok) throw new Error('download failed: ' + path);
+      if (!res.body || !res.body.getReader) { await res.arrayBuffer(); done += size; cb && cb(done / total); continue; }
+      const rd = res.body.getReader();
+      let got = 0;
+      for (;;) {
+        const { done: end, value } = await rd.read();
+        if (end) break;
+        got += value.length;
+        cb && cb(Math.min(1, (done + Math.min(got, size)) / total));
+      }
+      done += size;
+    }
+    cb && cb(1);
+  }
+
   function load() {
     if (classifier) return Promise.resolve(classifier);
     if (loading) return loading;
     loading = (async () => {
       const base = new URL('vendor/mediapipe/', location.href).href;
+      await prefetch(onProgress);         // download (or find cached) engine + model, with a progress %
       const vision = await import(base + 'vision_bundle.mjs');
       const fileset = await vision.FilesetResolver.forVisionTasks(base + 'wasm');
       classifier = await vision.ImageClassifier.createFromOptions(fileset, {
@@ -109,13 +140,20 @@ const Recognize = (() => {
     const st = state();
     st.count += 1;
     st.cooldowns[r.cat.id] = Date.now();
+    // stats (on this phone only)
+    const S = Store.get();
+    const rs = S.recogStats || (S.recogStats = { found: 0, caught: 0, byCat: {}, byForm: {}, labels: {} });
+    rs.found += 1;
+    rs.byCat[r.cat.id] = (rs.byCat[r.cat.id] || 0) + 1;
+    rs.byForm[r.form] = (rs.byForm[r.form] || 0) + 1;
+    rs.labels[r.label] = (rs.labels[r.label] || 0) + 1;
     Store.save();
     if (navigator.vibrate) try { navigator.vibrate([40, 40, 80]); } catch (e) {}
     Catch.start({
       forceLine: r.cat.line,
       forceForm: r.form,
       spawnHere: true,
-      provenance: `Found ${r.cat.where} (camera)`,
+      provenance: `Found ${r.cat.where} (camera saw "${r.label}", ${tierName(r.form).toLowerCase()})`,
       label: `🔍 ${tierName(r.form)} · ${r.cat.name}`,
     });
   }
@@ -140,8 +178,12 @@ const Recognize = (() => {
       v.srcObject = s;
       await v.play().catch(() => {});
     } catch (e) { st.textContent = 'Camera unavailable. Allow camera access to look for ducks.'; return; }
-    if (!classifier) st.textContent = 'Getting the duck-spotter ready… (first time only, about 12 MB)';
-    try { await load(); } catch (e) {
+    if (!classifier) {
+      st.textContent = `Getting the duck-spotter ready… (first time only, about ${TOTAL_MB} MB — best on good WiFi)`;
+      onProgress = (f) => { if (my === gen) { $('look-bar').style.width = Math.round(f * 100) + '%';
+        if (f > 0.02 && f < 1) st.textContent = `Downloading the duck-spotter… ${Math.round(f * 100)}% (first time only)`; } };
+    }
+    try { await load(); $('look-bar').style.width = '0%'; } catch (e) {
       if (my === gen) st.textContent = 'Couldn’t load the duck-spotter. Check your connection and try again.';
       return;
     }

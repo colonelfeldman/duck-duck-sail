@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="css/app.css?v=1.2.0">
+  <link rel="stylesheet" href="css/app.css?v=1.2.1">
 </head>
 <body data-screen="deck">
 
@@ -151,6 +151,7 @@
     <button class="mi" data-go="passport">🛂 Passport</button>
     <button class="mi" data-go="scan">📷 Scan a Sign</button>
     <button class="mi" data-go="signs">🪧 Sign Cards</button>
+    <button class="mi" data-stats>📊 My stats</button>
     <button class="mi" data-howto>❓ How to Play</button>
     <button class="mi" data-safety>🛟 Play Safe</button>
     <button class="mi strong" data-feedback>💬 Send feedback</button>
@@ -208,6 +209,15 @@
   </div>
 </div>
 
+<div id="stats" class="overlay" hidden>
+  <div class="panel scroll">
+    <button class="x" data-close aria-label="Close">✕</button>
+    <h2>My stats</h2>
+    <div id="stats-body"></div>
+    <p class="note">Stats live on this phone only.</p>
+  </div>
+</div>
+
 <div id="feedback" class="overlay" hidden>
   <div class="panel">
     <button class="x" data-close aria-label="Close">✕</button>
@@ -237,13 +247,13 @@
 
 <footer class="foot"><span id="ver"></span><span class="testbadge">TESTING</span> · <button class="linkbtn" data-feedback>Send feedback</button></footer>
 
-<script src="vendor/qrcode.js?v=1.2.0"></script>
-<script src="vendor/jsQR.js?v=1.2.0"></script>
-<script src="js/config.js?v=1.2.0"></script>
-<script src="js/art.js?v=1.2.0"></script>
-<script src="js/store.js?v=1.2.0"></script>
-<script src="js/recognize.js?v=1.2.0"></script>
-<script src="js/catch.js?v=1.2.0"></script>
-<script src="js/app.js?v=1.2.0"></script>
+<script src="vendor/qrcode.js?v=1.2.1"></script>
+<script src="vendor/jsQR.js?v=1.2.1"></script>
+<script src="js/config.js?v=1.2.1"></script>
+<script src="js/art.js?v=1.2.1"></script>
+<script src="js/store.js?v=1.2.1"></script>
+<script src="js/recognize.js?v=1.2.1"></script>
+<script src="js/catch.js?v=1.2.1"></script>
+<script src="js/app.js?v=1.2.1"></script>
 </body>
 </html>

@@ -197,6 +197,9 @@ const Store = (() => {
     S.shells += CONFIG.catchReward.shells;
     S.treats.duck = (S.treats.duck || 0) + CONFIG.catchReward.treats;
     S.stats.catches += 1;
+    S.stats.byLine = S.stats.byLine || {};
+    S.stats.byLine[c.line] = (S.stats.byLine[c.line] || 0) + 1;
+    if (String(provenance).includes('(camera') && S.recogStats) S.recogStats.caught += 1;
     let xp = CONFIG.xp.catchBase + (CONFIG.xp.quality[quality] || 0) + (curveball ? CONFIG.xp.curveball : 0);
     xp = Math.round(xp * xpMult);
     const levelUps = addXp(xp);

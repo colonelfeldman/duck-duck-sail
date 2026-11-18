@@ -478,6 +478,29 @@ const App = (() => {
     }
   }
 
+  // ================= stats (this phone only) =================
+  function renderStats() {
+    const S = Store.get();
+    const rs = S.recogStats || { found: 0, caught: 0, byCat: {}, byForm: {}, labels: {} };
+    // ducks caught before stats existed: count from the crew's logbooks
+    const camCrew = S.crew.filter((c) => String(c.provenance[0] || '').includes('(camera')).length;
+    const row = (k, v) => `<div class="srow"><span>${esc(k)}</span><b>${v}</b></div>`;
+    const byLine = S.stats.byLine || {};
+    const lines = Object.entries(DUCK_LINES).map(([id, L]) => row(L.name + ' line', byLine[id] || 0)).join('') + row('Port ducks', byLine.port || 0);
+    const cats = RECOGNIZE_CATEGORIES.map((c) => row(c.name + ' → ' + DUCK_LINES[c.line].name, rs.byCat[c.id] || 0)).join('');
+    const forms = [1, 2, 3].map((f) => row({ 1: 'Partial match (Form 1)', 2: 'Strong match (Form 2)', 3: 'Excellent match (Form 3)' }[f], rs.byForm[f] || 0)).join('');
+    const labels = Object.entries(rs.labels).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => row(k, v)).join('') || '<p class="note">Nothing yet.</p>';
+    $('stats-body').innerHTML = `
+      <h3>Catching</h3>${row('Ducks caught', S.stats.catches)}${row('Rings thrown', S.stats.throws)}${row('In your crew now', S.crew.length)}
+      <h3>By duck line</h3>${lines}
+      <h3>Look for ducks (camera)</h3>
+      ${row('Ducks found by the camera', rs.found)}${row('…of those, caught', Math.max(rs.caught, camCrew))}
+      ${row('Found today', (S.recog && S.recog.day === new Date().toLocaleDateString('en-CA')) ? S.recog.count + ' / ' + CONFIG.recognize.dailyCap : '0 / ' + CONFIG.recognize.dailyCap)}
+      <h3>What it found</h3>${cats}
+      <h3>Match strength</h3>${forms}
+      <h3>Things the camera recognized</h3>${labels}`;
+  }
+
   // ================= banners / toasts =================
   let bannerTimer = 0;
   function levelUpBanner(levelUps) {
@@ -544,6 +567,7 @@ const App = (() => {
     $('menu-btn').onclick = openMenu;
     document.querySelectorAll('[data-feedback]').forEach((b) => (b.onclick = openFeedback));
     document.querySelectorAll('[data-howto]').forEach((b) => (b.onclick = () => { closeMenu(); openOverlay('howto'); }));
+    document.querySelectorAll('[data-stats]').forEach((b) => (b.onclick = () => { closeMenu(); renderStats(); openOverlay('stats'); }));
     document.querySelectorAll('[data-safety]').forEach((b) => (b.onclick = () => { closeMenu(); openOverlay('safety'); }));
     $('fb-form').addEventListener('submit', sendFeedback);
     $('crew-sort').onchange = renderCrew;

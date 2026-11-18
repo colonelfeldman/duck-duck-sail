@@ -351,3 +351,5 @@ form textarea, form input { display: block; width: 100%; margin-top: 4px; border
 .look-readout div { display: flex; gap: 8px; align-items: center; padding: 2px 0; color: #9fb1c8; }
 .look-readout div span { flex: 1; } .look-readout div i { font-style: normal; color: #FFD43B; font-weight: 700; }
 .look-readout div.hit { color: #fff; }
+.srow { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .92rem; }
+.srow b { color: var(--navy); }

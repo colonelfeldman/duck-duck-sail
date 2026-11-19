@@ -4,8 +4,8 @@ const CACHE = 'dds-cache-v1';
 // Big files that never change in place (rename the file to update it): served cache-first so the
 // ~20 MB duck-spotter engine + model download once, not on every visit. Kept across updates.
 const BIG = 'dds-big-v1';
-const isBig = (url) => url.pathname.includes('/vendor/mediapipe/') || url.pathname.includes('/vendor/models/');
-const CORE = ['./', 'index.html', 'css/app.css', 'js/config.js', 'js/art.js', 'js/store.js', 'js/catch.js', 'js/app.js',
+const isBig = (url) => url.pathname.includes('/vendor/mediapipe/') || url.pathname.includes('/vendor/models/') || url.pathname.includes('/vendor/three/');
+const CORE = ['./', 'index.html', 'css/app.css', 'js/config.js', 'js/art.js', 'js/store.js', 'js/duck3d.js', 'js/catch.js', 'js/app.js',
   'vendor/qrcode.js', 'vendor/jsQR.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {

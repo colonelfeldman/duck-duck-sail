@@ -261,6 +261,7 @@ const Catch = (() => {
     E.duck.x = E.W / 2;
 
     el.art.innerHTML = ART.duckSVG(E.wild);
+    if (typeof Duck3D !== 'undefined') Duck3D.show(el.art, E.wild);   // 3D preview replaces the flat duck once loaded
     el.dk.className = 'dk appear';
     el.duckwrap.style.visibility = E.look.pending ? 'hidden' : '';
     el['c-find'].hidden = true;
@@ -297,6 +298,7 @@ const Catch = (() => {
   // The one shared cleanup path: timers, camera, reel state, listeners.
   function cleanup() {
     if (!E) return;
+    if (typeof Duck3D !== 'undefined') Duck3D.hide();
     for (const id of E.timers) clearTimeout(id);
     E.timers.clear();
     cancelAnimationFrame(E.raf);
